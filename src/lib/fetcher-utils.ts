@@ -102,9 +102,8 @@ export async function insertRawContents(
           errors.push(`Failed to insert: ${item.title}`);
         }
       } else {
-        errors.push(
-          `${item.title}: ${error instanceof Error ? error.message : String(error)}`
-        );
+        const msg = error instanceof Error ? error.message : String(error);
+        errors.push(`${item.title}: ${msg}`);
       }
     }
   }

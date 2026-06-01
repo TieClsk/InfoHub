@@ -20,7 +20,7 @@ export async function fetchToutiao(): Promise<FetcherResult<RawContentInput>> {
       externalId: String(item.ClusterId),
       externalUrl: item.Url || `https://www.toutiao.com/trending/${item.ClusterId}`,
       title: item.Title || '',
-      sourceRank: item.HotValue,
+      sourceRank: typeof item.HotValue === 'string' ? parseInt(item.HotValue, 10) : (item.HotValue as number),
       rawData: item as unknown as Record<string, unknown>,
       language: 'zh',
     }));
