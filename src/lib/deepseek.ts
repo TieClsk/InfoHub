@@ -322,6 +322,36 @@ export async function translateToChinese(text: string): Promise<string> {
   }
 }
 
+/**
+ * 单条摘要重新生成（标题≈摘要时修复）
+ */
+export async function regenerateSummary(title: string, sourceName: string): Promise<string> {
+  if (!API_KEY) return title;
+
+  try {
+    const content = await chatCompletion([
+      { role: 'system', content: '你是专业中文新闻编辑。只返回摘要文本，不要标题、不要URL、不要任何其他内容。' },
+      {
+        role: 'user',
+        content: `请为以下新闻写一段50-100字的中文简介。简介应概括新闻的核心内容和背景，不要重复标题。
+
+标题：${title}
+来源：${sourceName}
+
+只返回50-100字的中文简介：`,
+      },
+    ]);
+    const summary = content.trim();
+    // 过滤无效响应
+    if (summary.length < 10 || summary === title || /https?:\/\//.test(summary)) {
+      return title;
+    }
+    return summary;
+  } catch {
+    return title;
+  }
+}
+
 export async function processBatch(
   items: AIProcessInput[],
   sourceNameMap: Record<string, string>,

@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import { clusterByTitle, verifyAndMerge, scoreSingle, translateToChinese, filterIrrelevant } from '@/lib/deepseek';
+import { clusterByTitle, verifyAndMerge, scoreSingle, translateToChinese, filterIrrelevant, regenerateSummary } from '@/lib/deepseek';
 import type { MergedResult } from '@/lib/deepseek';
 
 function shareSubstring(a: string, b: string, minLen = 5): boolean {
@@ -324,6 +324,30 @@ export async function processCategory(
       errors.push(`Single ${rawItem.id}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
+
+  // 6. 后处理：修复摘要≈标题的条目
+  const badSummaries = await prisma.processedContent.findMany({
+    where: { category },
+    select: { id: true, title: true, summary: true, sourceName: true },
+  });
+
+  let fixedCount = 0;
+  for (const item of badSummaries) {
+    // 摘要≈标题 或 摘要太短
+    if (item.summary.trim() === item.title.trim() || item.summary.trim().length < 15) {
+      try {
+        const newSummary = await regenerateSummary(item.title, item.sourceName);
+        if (newSummary !== item.title) {
+          await prisma.processedContent.update({
+            where: { id: item.id },
+            data: { summary: newSummary },
+          });
+          fixedCount++;
+        }
+      } catch { /* skip */ }
+    }
+  }
+  if (fixedCount > 0) console.log(`  [fix] regenerated ${fixedCount} bad summaries`);
 
   return {
     processed: mergedResults.length + singleResults.length,
