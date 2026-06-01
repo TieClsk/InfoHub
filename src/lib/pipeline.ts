@@ -125,6 +125,8 @@ export async function processCategory(
                 originalLanguage: rawItem.language,
                 sourceRank: rawItem.sourceRank,
                 sourceUrl: rawItem.externalUrl ?? null,
+                sourceCount: result.sourceCount || 1,
+                sourceNames: result.sourceNames || [sourceNameMap[rawItem.sourceId] ?? rawItem.sourceId],
               }),
             },
           });

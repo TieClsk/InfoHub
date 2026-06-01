@@ -10,3 +10,4 @@ export { fetchRenminNews } from './renmin';
 export { fetchNhkNews } from './nhk';
 export { fetchClsNews } from './cls';
 export { fetchEastmoneyNews } from './eastmoney';
+export { fetchWeiboHot } from './weibo-hot';

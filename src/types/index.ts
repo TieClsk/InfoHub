@@ -43,6 +43,9 @@ export interface AIProcessOutput {
   isDuplicate: boolean;
   duplicateOf?: string;
   irrelevant?: boolean;
+  sourceCount?: number;
+  sourceNames?: string[];
+  mergedIds?: string[];
 }
 
 // API 统一响应

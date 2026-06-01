@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchGithubTrending, fetchHackerNews, fetchRenminNews, fetchNhkNews, fetchEastmoneyNews } from '@/lib/fetchers';
+import { fetchGithubTrending, fetchHackerNews, fetchRenminNews, fetchNhkNews, fetchEastmoneyNews, fetchWeiboHot } from '@/lib/fetchers';
 import { processCategory } from '@/lib/pipeline';
 import { cleanupRawContent } from '@/lib/pipeline';
 
@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     { name: 'renmin', fn: fetchRenminNews },
     { name: 'nhk', fn: fetchNhkNews },
     { name: 'eastmoney', fn: fetchEastmoneyNews },
+    { name: 'weibo', fn: fetchWeiboHot },
   ];
 
   for (const { name, fn } of fetchers) {

@@ -62,6 +62,17 @@ export function NewsCard({
 }: NewsCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
   const url = getSourceUrl(metadata, sourceUrl);
+
+  // 解析来源数量
+  let sourceCount = 0;
+  let sourceNames: string[] = [];
+  if (metadata) {
+    try {
+      const meta = JSON.parse(metadata) as { sourceCount?: number; sourceNames?: string[] };
+      sourceCount = meta.sourceCount ?? 0;
+      sourceNames = meta.sourceNames ?? [];
+    } catch { /* ignore */ }
+  }
   const date = new Date(publishedAt).toLocaleDateString('zh-CN', {
     month: 'short',
     day: 'numeric',
@@ -78,7 +89,16 @@ export function NewsCard({
               <Badge variant="secondary" className="text-xs">
                 {CATEGORY_LABELS[category] ?? category}
               </Badge>
-              <span>{sourceName}</span>
+              {sourceCount > 1 ? (
+                <span
+                  className="text-[10px] text-green-600 dark:text-green-400 font-medium"
+                  title={sourceNames.join('、')}
+                >
+                  {sourceCount} 家媒体
+                </span>
+              ) : (
+                <span>{sourceName}</span>
+              )}
             </div>
             <div className="flex items-center gap-0.5 shrink-0" title={`AI 评分 ${importance}/10`}>
               <Star className="h-3 w-3 fill-amber-400 text-amber-400" />

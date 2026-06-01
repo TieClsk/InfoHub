@@ -130,6 +130,9 @@ export async function processBatch(
     isDuplicate: Boolean(r['isDuplicate']),
     duplicateOf: r['duplicateOf'] as string | undefined,
     irrelevant: r['irrelevant'] === true,
+    sourceCount: typeof r['sourceCount'] === 'number' ? r['sourceCount'] : undefined,
+    sourceNames: Array.isArray(r['sourceNames']) ? (r['sourceNames'] as string[]) : undefined,
+    mergedIds: Array.isArray(r['mergedIds']) ? (r['mergedIds'] as string[]) : undefined,
   }));
 }
 

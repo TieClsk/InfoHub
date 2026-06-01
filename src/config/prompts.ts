@@ -6,10 +6,13 @@ export const PROMPTS = {
     template: `请处理以下 {{count}} 条内容（所属板块：{{category}}）：
 
 任务：
-1. 识别报道同一事件的条目，只保留最详细的一条（标记 isDuplicate: true 和 duplicateOf 指向被保留的 id）
-2. 为每条内容评分（1-10，10 最重要）。参考 sourceRank（数值越大越热门），但需综合判断，不要机械照搬
-3. 生成不超过 100 字的中文摘要
+1. 跨源合并：识别来自不同来源但报道同一事件的条目。合并为一条，综合各来源信息写出更全面的标题和摘要
+2. 为合并后的每条内容评分（1-10，10 最重要）：
+   - 多来源交叉验证的事件应加分：3个以上来源报道 → +3分，2个来源 → +1分
+   - 参考 sourceRank（数值越大越热门），但需综合判断
+3. 生成不超过 100 字的中文摘要（综合各来源信息）
 4. 分配二级分类和 1-3 个标签
+5. 记录 sourceCount（有多少个不同来源报道了此事件）和 sourceNames（来源名称列表）
 
 {{#if eq category "github"}}
 GitHub 板块特殊规则：
@@ -36,16 +39,20 @@ AI 板块特殊规则：
 
 请严格以 JSON 数组格式返回，每条格式：
 {
-  "id": "原始id",
-  "title": "纯中文标题",
-  "summary": "纯中文摘要，不超过100字",
+  "id": "原始id（主条目）",
+  "title": "综合各来源后的中文标题",
+  "summary": "综合各来源后的中文摘要",
   "importance": 1-10,
   "tags": ["具体标签"],
   "subcategory": "二级分类",
   "isDuplicate": false,
   "duplicateOf": null,
-  "irrelevant": false
+  "irrelevant": false,
+  "sourceCount": 1,
+  "sourceNames": ["来源名"],
+  "mergedIds": ["被合并的原始id"]
 }`,
+
   },
 
   WEEKLY_SUMMARY: {
