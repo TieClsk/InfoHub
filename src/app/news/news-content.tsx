@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { BarChart3, TrendingUp } from 'lucide-react';
 import { NewsCard } from '@/components/news-card';
+import { DateStrip } from '@/components/date-strip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -25,11 +26,13 @@ export function NewsContent() {
   const router = useRouter();
   const category = searchParams.get('category') ?? 'domestic';
   const page = parseInt(searchParams.get('page') ?? '1', 10);
+  const date = searchParams.get('date') || new Date().toISOString().slice(0, 10);
   const [sortBy, setSortBy] = useState<'rating' | 'multi' | 'hot'>('rating');
 
-  const sortParam = sortBy === 'multi' ? 'multi' : '';
+  const dateParam = searchParams.get('date') ? `&date=${searchParams.get('date')}` : '';
+  const sortParam = sortBy === 'multi' ? '&sort=multi' : '';
   const { data, isLoading } = useSWR<ApiResponse<Array<Record<string, unknown>>>>(
-    `/api/news?category=${category}&page=${page}&limit=20${sortParam ? '&sort=multi' : ''}`,
+    `/api/news?category=${category}&page=${page}&limit=20${dateParam}${sortParam}`,
     fetcher
   );
 
@@ -73,9 +76,14 @@ export function NewsContent() {
         </div>
       </div>
 
+      <DateStrip
+        selected={date}
+        onChange={(d) => router.push(`/news?category=${category}&date=${d}`)}
+      />
+
       <Tabs
         value={category}
-        onValueChange={(v) => { router.push(`/news?category=${v}`); setSortBy('rating'); }}
+        onValueChange={(v) => { router.push(`/news?category=${v}&date=${date}`); setSortBy('rating'); }}
       >
         <TabsList>
           {CATEGORIES.map((c) => (
@@ -129,7 +137,7 @@ export function NewsContent() {
                   {/* 上一页 */}
                   <button
                     disabled={page <= 1}
-                    onClick={() => router.push(`/news?category=${category}&page=${page - 1}`)}
+                    onClick={() => router.push(`/news?category=${category}&date=${date}&page=${page - 1}`)}
                     className="px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-l-lg transition-colors disabled:opacity-30"
                   >‹</button>
 
@@ -141,7 +149,7 @@ export function NewsContent() {
                       <button
                         key={p}
                         disabled={p === page}
-                        onClick={() => router.push(`/news?category=${category}&page=${p}`)}
+                        onClick={() => router.push(`/news?category=${category}&date=${date}&page=${p}`)}
                         className={`min-w-[2rem] px-1.5 py-1.5 text-sm transition-colors ${
                           p === page
                             ? 'bg-primary text-primary-foreground font-medium'
@@ -154,7 +162,7 @@ export function NewsContent() {
                   {/* 下一页 */}
                   <button
                     disabled={page >= totalPages}
-                    onClick={() => router.push(`/news?category=${category}&page=${page + 1}`)}
+                    onClick={() => router.push(`/news?category=${category}&date=${date}&page=${page + 1}`)}
                     className="px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-r-lg transition-colors disabled:opacity-30"
                   >›</button>
                 </div>

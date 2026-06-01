@@ -11,8 +11,15 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)));
     const skip = (page - 1) * limit;
 
+    const date = searchParams.get('date'); // YYYY-MM-DD
+
     const where: Record<string, unknown> = {};
     if (category) where['category'] = category;
+    if (date) {
+      const start = new Date(date + 'T00:00:00.000Z');
+      const end = new Date(date + 'T23:59:59.999Z');
+      where['createdAt'] = { gte: start, lte: end };
+    }
 
     // 多源模式：取更多数据供前端排序
     const fetchLimit = sort === 'multi' ? 200 : limit;
