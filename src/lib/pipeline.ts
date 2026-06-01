@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db';
 import { processBatch, translateToChinese } from '@/lib/deepseek';
 import type { AIProcessInput } from '@/types';
 
-const BATCH_SIZE = 6;
+const BATCH_SIZE = 10;
 
 async function getSourceNameMap(): Promise<Record<string, string>> {
   const sources = await prisma.dataSource.findMany({

@@ -84,10 +84,18 @@ export async function processBatch(
     publishedAt: item.publishedAt,
   }));
 
-  const prompt = PROMPTS.BATCH_PROCESS.template
+  let prompt = PROMPTS.BATCH_PROCESS.template
     .replace('{{category}}', category)
     .replace('{{count}}', String(itemsForAI.length))
     .replace('{{items}}', JSON.stringify(itemsForAI, null, 2));
+
+  // 处理 {{#if eq category "github"}} 条件块
+  if (category === 'github') {
+    prompt = prompt.replace(/\{\{#if eq category "github"\}\}/g, '');
+    prompt = prompt.replace(/\{\{\/if\}\}/g, '');
+  } else {
+    prompt = prompt.replace(/\{\{#if eq category "github"\}\}[\s\S]*?\{\{\/if\}\}/g, '');
+  }
 
   const content = await chatCompletion([
     { role: 'system', content: PROMPTS.BATCH_PROCESS.system },
