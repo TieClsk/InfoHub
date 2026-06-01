@@ -56,6 +56,7 @@ export function NewsContent() {
             {data.data.map((item: Record<string, unknown>) => (
               <NewsCard
                 key={item['id'] as string}
+                id={item['id'] as string}
                 title={item['title'] as string}
                 summary={item['summary'] as string}
                 sourceName={item['sourceName'] as string}

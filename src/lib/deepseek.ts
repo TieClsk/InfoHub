@@ -164,3 +164,33 @@ export async function translateToChinese(text: string): Promise<string> {
     return text; // 翻译失败返回原文
   }
 }
+
+/**
+ * 生成详细概述（用于详情弹窗）
+ */
+export async function generateDetailSummary(
+  title: string,
+  shortSummary: string,
+  sourceUrl?: string | null
+): Promise<string> {
+  if (!API_KEY) return '';
+
+  const context = [
+    `标题：${title}`,
+    `摘要：${shortSummary}`,
+    sourceUrl ? `来源：${sourceUrl}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const content = await chatCompletion([
+    {
+      role: 'system',
+      content:
+        '你是一个博客编辑。请根据以下信息，用 200-300 字的中文撰写一段深度概述。内容包括：项目/事件的背景、核心特点、实际应用价值、相关技术细节或行业影响。语气专业但易读。直接返回正文，不要标题和Markdown标记。',
+    },
+    { role: 'user', content: context },
+  ]);
+
+  return content.trim();
+}

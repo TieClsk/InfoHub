@@ -24,6 +24,7 @@ export default async function GithubPage() {
           {repos.map((repo) => (
             <NewsCard
               key={repo['id'] as string}
+              id={repo['id'] as string}
               title={repo['title'] as string}
               summary={repo['summary'] as string}
               sourceName={repo['sourceName'] as string}

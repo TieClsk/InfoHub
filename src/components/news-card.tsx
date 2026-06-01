@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DetailModal } from './detail-modal';
 
 interface NewsCardProps {
+  id?: string;
   title: string;
   summary: string;
   sourceName: string;
@@ -48,6 +49,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export function NewsCard({
+  id,
   title,
   summary,
   sourceName,
@@ -128,6 +130,7 @@ export function NewsCard({
       <DetailModal
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
+        id={id}
         title={title}
         summary={summary}
         sourceName={sourceName}

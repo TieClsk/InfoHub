@@ -1,11 +1,13 @@
 'use client';
 
-import { Star, ExternalLink, X, Tag } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Star, ExternalLink, X, Tag, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface DetailModalProps {
   open: boolean;
   onClose: () => void;
+  id?: string;
   title: string;
   summary: string;
   sourceName: string;
@@ -37,6 +39,7 @@ function parseTags(tags: string[] | string): string[] {
 export function DetailModal({
   open,
   onClose,
+  id,
   title,
   summary,
   sourceName,
@@ -46,6 +49,29 @@ export function DetailModal({
   publishedAt,
   sourceUrl,
 }: DetailModalProps) {
+  const [detail, setDetail] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !id) return;
+    setDetail('');
+    setLoading(true);
+
+    fetch('/api/ai/detail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.data?.detailedSummary) {
+          setDetail(data.data.detailedSummary);
+        }
+      })
+      .catch(() => { /* ignore */ })
+      .finally(() => setLoading(false));
+  }, [open, id]);
+
   if (!open) return null;
 
   const tagList = parseTags(tags);
@@ -59,12 +85,10 @@ export function DetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* 遮罩 */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      {/* 弹窗 */}
       <div className="relative bg-background rounded-xl shadow-lg max-w-lg w-full max-h-[80vh] overflow-y-auto p-6 border">
         <button
           onClick={onClose}
@@ -75,10 +99,8 @@ export function DetailModal({
         </button>
 
         <div className="space-y-4">
-          {/* 标题 */}
           <h2 className="text-lg font-semibold leading-snug pr-8">{title}</h2>
 
-          {/* 元信息 */}
           <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
             <Badge variant="secondary">
               {CATEGORY_LABELS[category] ?? category}
@@ -92,7 +114,6 @@ export function DetailModal({
             <time>{date}</time>
           </div>
 
-          {/* 标签 */}
           {tagList.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {tagList.map((tag) => (
@@ -104,12 +125,27 @@ export function DetailModal({
             </div>
           )}
 
-          {/* 摘要 */}
-          <div className="prose prose-sm dark:prose-invert max-w-none">
-            <p className="text-sm leading-relaxed whitespace-pre-line">{summary}</p>
+          {/* AI 摘要 */}
+          <div>
+            <h3 className="text-sm font-medium mb-1">AI 摘要</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">{summary}</p>
           </div>
 
-          {/* 链接 */}
+          {/* 深度概述 */}
+          {loading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              AI 正在生成深度概述...
+            </div>
+          )}
+
+          {detail && (
+            <div>
+              <h3 className="text-sm font-medium mb-1">深度概述</h3>
+              <p className="text-sm leading-relaxed whitespace-pre-line">{detail}</p>
+            </div>
+          )}
+
           {sourceUrl && (
             <a
               href={sourceUrl}
