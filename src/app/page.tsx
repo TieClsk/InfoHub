@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { CategorySection } from '@/components/category-section';
 
 const CATEGORIES: { key: string; label: string; icon: string }[] = [
@@ -24,15 +26,17 @@ interface NewsItem {
 async function getCategoryNews() {
   try {
     const { prisma } = await import('@/lib/db');
-    const results: Record<string, NewsItem[]> = {};
-    for (const cat of CATEGORIES) {
-      results[cat.key] = (await prisma.processedContent.findMany({
+    const queries = CATEGORIES.map((cat) =>
+      prisma.processedContent.findMany({
         where: { category: cat.key },
         orderBy: { importance: 'desc' },
         take: 12,
-      })) as unknown as NewsItem[];
-    }
-    return results;
+      })
+    );
+    const results = await Promise.all(queries);
+    const map: Record<string, NewsItem[]> = {};
+    CATEGORIES.forEach((cat, i) => { map[cat.key] = results[i] as unknown as NewsItem[]; });
+    return map;
   } catch {
     return null;
   }
