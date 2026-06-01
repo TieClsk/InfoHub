@@ -79,6 +79,7 @@ export async function processCategory(
 
       for (const result of results) {
         if (result.isDuplicate) continue;
+        if (category === 'ai' && result.irrelevant) continue; // AI 板块过滤无关内容
 
         const rawItem = batch.find((r) => r.id === result.id);
         if (!rawItem) continue;

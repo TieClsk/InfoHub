@@ -9,6 +9,10 @@ interface ChatMessage {
   content: string;
 }
 
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 async function chatCompletion(
   messages: ChatMessage[],
   retries = 3
@@ -89,12 +93,19 @@ export async function processBatch(
     .replace('{{count}}', String(itemsForAI.length))
     .replace('{{items}}', JSON.stringify(itemsForAI, null, 2));
 
-  // 处理 {{#if eq category "github"}} 条件块
-  if (category === 'github') {
-    prompt = prompt.replace(/\{\{#if eq category "github"\}\}/g, '');
+  // 处理 {{#if eq category "xxx"}} 条件块
+  const categories = ['github', 'ai'];
+  for (const cat of categories) {
+    const ifTag = `{{#if eq category "${cat}"}}`;
+    if (category === cat) {
+      prompt = prompt.replace(new RegExp(escapeRegExp(ifTag), 'g'), '');
+    } else {
+      prompt = prompt.replace(
+        new RegExp(escapeRegExp(ifTag) + '[\\s\\S]*?' + escapeRegExp('{{/if}}'), 'g'),
+        ''
+      );
+    }
     prompt = prompt.replace(/\{\{\/if\}\}/g, '');
-  } else {
-    prompt = prompt.replace(/\{\{#if eq category "github"\}\}[\s\S]*?\{\{\/if\}\}/g, '');
   }
 
   const content = await chatCompletion([
@@ -118,6 +129,7 @@ export async function processBatch(
     subcategory: (r['subcategory'] as string) || '',
     isDuplicate: Boolean(r['isDuplicate']),
     duplicateOf: r['duplicateOf'] as string | undefined,
+    irrelevant: r['irrelevant'] === true,
   }));
 }
 

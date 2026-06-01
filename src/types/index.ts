@@ -42,6 +42,7 @@ export interface AIProcessOutput {
   subcategory: string;
   isDuplicate: boolean;
   duplicateOf?: string;
+  irrelevant?: boolean;
 }
 
 // API 统一响应

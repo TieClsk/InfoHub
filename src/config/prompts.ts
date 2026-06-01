@@ -13,16 +13,23 @@ export const PROMPTS = {
 
 {{#if eq category "github"}}
 GitHub 板块特殊规则：
-- 标题和摘要绝对不要提及"获X星"、"今日X星"等星数信息（星数会单独在 UI 展示）
+- 标题和摘要绝对不要提及"获X星"、"今日X星"等星数信息
 - 标题格式：项目名：一句话介绍功能（如"MarkItDown：微软开源的文档转 Markdown 工具"）
 - 摘要聚焦项目功能、用途、技术特色，不要提排名或热度
 - sourceRank 是 todayStars，仅用于评分参考，不要写入文字
 {{/if}}
 
-通用规则（所有板块）：
-- 标题直接概括内容，不加板块前缀（"GitHub热门项目："、"AI新闻："等）
-- 标签要有区分度：技术栈名（Python、Rust）、公司名（微软、OpenAI）、具体领域（大模型、芯片）
-- 不要用无辨识度的通用标签（"GitHub Trending"、"高星项目"、"热门新闻"、"开源项目"等）
+{{#if eq category "ai"}}
+AI 板块特殊规则：
+- 必须过滤非 AI/科技 相关内容：音乐娱乐、天文、历史趣闻等不相关的标记 irrelevant: true
+- AI 相关内容的标准：涉及人工智能、大模型、机器学习、深度学习、NLP、CV、AI应用、AI安全、AI芯片、数据科学、编程开发、开源技术
+- 边缘科技内容（Linux内核、新硬件、科技公司动态）可以保留，但评分调低
+{{/if}}
+
+通用规则：
+- 所有标题和摘要必须是中文。英文原文必须翻译为中文，不得保留英文
+- 标题直接概括内容，不加板块前缀
+- 标签要有区分度：技术栈名、公司名、具体领域
 
 内容列表：
 {{items}}
@@ -30,13 +37,14 @@ GitHub 板块特殊规则：
 请严格以 JSON 数组格式返回，每条格式：
 {
   "id": "原始id",
-  "title": "整理后的中文标题",
-  "summary": "100字以内中文摘要",
+  "title": "纯中文标题",
+  "summary": "纯中文摘要，不超过100字",
   "importance": 1-10,
   "tags": ["具体标签"],
   "subcategory": "二级分类",
   "isDuplicate": false,
-  "duplicateOf": null
+  "duplicateOf": null,
+  "irrelevant": false
 }`,
   },
 
