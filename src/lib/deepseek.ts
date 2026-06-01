@@ -576,8 +576,8 @@ interface OverviewItem {
 export async function generateOverview(
   categoryLabel: string,
   items: OverviewItem[]
-): Promise<string> {
-  if (!API_KEY || items.length === 0) return '暂无数据。';
+): Promise<{ overview: string; questions: string[] }> {
+  if (!API_KEY || items.length === 0) return { overview: '暂无数据。', questions: [] };
 
   const itemsText = items
     .map((i, idx) => `${idx + 1}. [${i.sourceName}] ${i.title}\n   摘要：${i.summary}\n   时间：${i.publishedAt}`)
@@ -589,7 +589,7 @@ export async function generateOverview(
     const content = await chatCompletion([
       {
         role: 'system',
-        content: `你是专业新闻编辑。今天是${now}。请根据提供的新闻生成今日${categoryLabel}领域速览。只返回正文，不要标题。`,
+        content: `你是专业新闻编辑。今天是${now}。请生成今日速览并附带推荐问题。返回 JSON 格式。`,
       },
       {
         role: 'user',
@@ -597,16 +597,21 @@ export async function generateOverview(
 
 ${itemsText}
 
-请生成200-300字的今日${categoryLabel}速览：
-1. 总结今天这个领域主要发生了什么（2-3个要点）
-2. 有什么值得关注的事件或趋势
-3. 注意时间线——只关注今天的事件，如果某条新闻明显是旧闻（时间超过24小时），忽略它
-4. 语言简洁专业，中文输出`,
+请返回 JSON：
+{
+  "overview": "200-300字的今日${categoryLabel}速览（Markdown格式，用**加粗**、- 列表等）。总结今天这个领域的主要事件和值得关注的趋势。忽略超过24小时的旧闻。",
+  "questions": ["3个读者可能会追问的具体问题"]
+}`,
       },
     ]);
-    return content.trim();
+
+    const json = JSON.parse(extractJson(content)) as { overview?: string; questions?: string[] };
+    return {
+      overview: json.overview || '生成失败。',
+      questions: Array.isArray(json.questions) ? json.questions.slice(0, 3) : [],
+    };
   } catch {
-    return '生成失败，请稍后重试。';
+    return { overview: '生成失败，请稍后重试。', questions: [] };
   }
 }
 
