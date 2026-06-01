@@ -16,16 +16,49 @@ async function getSourceNameMap(): Promise<Record<string, string>> {
 }
 
 /**
- * 按板块取未处理 RawContent，调用 DeepSeek 处理后写入 ProcessedContent
+ * 等比例取样：从该板块的各数据源中各取一部分，确保来源多样性
  */
+async function getDiverseSamples(
+  sourceIds: string[],
+  totalLimit: number
+) {
+  const perSource = Math.max(5, Math.ceil(totalLimit / sourceIds.length));
+
+  const allItems: Awaited<ReturnType<typeof prisma.rawContent.findMany>>[] = [];
+  for (const sid of sourceIds) {
+    const items = await prisma.rawContent.findMany({
+      where: { sourceId: sid },
+      orderBy: { fetchedAt: 'desc' },
+      take: perSource,
+    });
+    allItems.push(items);
+  }
+
+  // 交错排列（避免同一来源挤在一起）
+  const result: (typeof allItems)[number] = [];
+  let hasMore = true;
+  let idx = 0;
+  while (hasMore) {
+    hasMore = false;
+    for (const items of allItems) {
+      if (idx < items.length) {
+        result.push(items[idx]!);
+        hasMore = true;
+      }
+    }
+    idx++;
+  }
+
+  return result.slice(0, totalLimit);
+}
+
 export async function processCategory(
   category: string,
-  limit = 30
+  limit = 60
 ): Promise<{ processed: number; skipped: number; errors: string[] }> {
   const errors: string[] = [];
   const sourceNameMap = await getSourceNameMap();
 
-  // 获取该板块的 sourceId 列表
   const categorySources = await prisma.dataSource.findMany({
     where: { category },
     select: { name: true },
@@ -36,12 +69,8 @@ export async function processCategory(
     return { processed: 0, skipped: 0, errors: [`No sources for category: ${category}`] };
   }
 
-  // 取这些来源中未处理的 rawContent
-  const rawItems = await prisma.rawContent.findMany({
-    where: { sourceId: { in: sourceIds } },
-    orderBy: { fetchedAt: 'asc' },
-    take: limit,
-  });
+  // 等比例从各源取样
+  const rawItems = await getDiverseSamples(sourceIds, limit);
 
   // 过滤已处理
   const rawIds = rawItems.map((r) => r.id);
@@ -49,9 +78,7 @@ export async function processCategory(
     where: { rawContentId: { in: rawIds } },
     select: { rawContentId: true },
   });
-  const processedIdSet = new Set(
-    processedRows.map((p) => p.rawContentId).filter(Boolean)
-  );
+  const processedIdSet = new Set(processedRows.map((p) => p.rawContentId).filter(Boolean));
 
   const unprocessed = rawItems.filter((r) => !processedIdSet.has(r.id));
 
@@ -77,7 +104,6 @@ export async function processCategory(
 
       const results = await processBatch(aiInputs, sourceNameMap, category);
 
-      // AI 板块：用 DeepSeek 专用过滤判断每条是否相关
       let irrelevantIds: Set<string> = new Set();
       if (category === 'ai') {
         const filterItems = results
@@ -85,6 +111,16 @@ export async function processCategory(
           .map((r) => ({ id: r.id, title: r.title, tags: r.tags }));
         const toRemove = await filterIrrelevant(filterItems, category);
         irrelevantIds = new Set(toRemove);
+      }
+
+      // 构建被合并 ID → 主条目映射
+      const mergedIdMap = new Map<string, string>(); // mergedId → mainId
+      for (const result of results) {
+        if (result.mergedIds) {
+          for (const mid of result.mergedIds) {
+            mergedIdMap.set(mid, result.id);
+          }
+        }
       }
 
       for (const result of results) {
@@ -95,15 +131,38 @@ export async function processCategory(
         const rawItem = batch.find((r) => r.id === result.id);
         if (!rawItem) continue;
 
+        // 收集被合并的来源信息
+        const mergedRawItems = (result.mergedIds || [])
+          .map((mid) => batch.find((r) => r.id === mid))
+          .filter(Boolean) as typeof rawItem[];
+
+        const allSourceNames = new Set<string>();
+        allSourceNames.add(sourceNameMap[rawItem.sourceId] ?? rawItem.sourceId);
+        for (const m of mergedRawItems) {
+          allSourceNames.add(sourceNameMap[m.sourceId] ?? m.sourceId);
+        }
+
+        const mergedSourceNames = result.sourceNames && result.sourceNames.length > 0
+          ? result.sourceNames
+          : Array.from(allSourceNames);
+
+        const sourceCount = Math.max(
+          result.sourceCount || 1,
+          mergedSourceNames.length
+        );
+
+        // 多源加权：3源以上+3，2源+1
+        let importance = result.importance;
+        if (sourceCount >= 3) importance = Math.min(10, importance + 3);
+        else if (sourceCount >= 2) importance = Math.min(10, importance + 1);
+
         let title = result.title;
         let summary = result.summary;
         if (rawItem.language === 'en') {
           try {
             title = await translateToChinese(title);
             summary = await translateToChinese(summary);
-          } catch {
-            // 翻译失败保留原文
-          }
+          } catch { /* keep original */ }
         }
 
         try {
@@ -116,7 +175,7 @@ export async function processCategory(
               subcategory: result.subcategory || null,
               title,
               summary,
-              importance: result.importance,
+              importance,
               tags: JSON.stringify(result.tags),
               language: 'zh',
               publishedAt: rawItem.fetchedAt,
@@ -125,29 +184,21 @@ export async function processCategory(
                 originalLanguage: rawItem.language,
                 sourceRank: rawItem.sourceRank,
                 sourceUrl: rawItem.externalUrl ?? null,
-                sourceCount: result.sourceCount || 1,
-                sourceNames: result.sourceNames || [sourceNameMap[rawItem.sourceId] ?? rawItem.sourceId],
+                sourceCount,
+                sourceNames: mergedSourceNames,
               }),
             },
           });
         } catch (err) {
-          errors.push(
-            `Insert ${rawItem.id}: ${err instanceof Error ? err.message : String(err)}`
-          );
+          errors.push(`Insert ${rawItem.id}: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
     } catch (err) {
-      errors.push(
-        `Batch ${i / BATCH_SIZE + 1}: ${err instanceof Error ? err.message : String(err)}`
-      );
+      errors.push(`Batch ${i / BATCH_SIZE + 1}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
-  return {
-    processed: unprocessed.length - errors.length,
-    skipped: processedIdSet.size,
-    errors,
-  };
+  return { processed: unprocessed.length - errors.length, skipped: processedIdSet.size, errors };
 }
 
 export async function cleanupRawContent(retentionDays = 14): Promise<{
