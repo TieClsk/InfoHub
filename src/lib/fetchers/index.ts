@@ -6,3 +6,7 @@ export { fetchTianxingNews } from './tianxing';
 export { fetchWeiboHotsearch } from './weibo';
 export { fetchHackerNews } from './hackernews';
 export { fetchBbcNews } from './bbc';
+export { fetchRenminNews } from './renmin';
+export { fetchNhkNews } from './nhk';
+export { fetchClsNews } from './cls';
+export { fetchEastmoneyNews } from './eastmoney';

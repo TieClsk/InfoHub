@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchGithubTrending, fetchWeiboHotsearch, fetchHackerNews, fetchBbcNews } from '@/lib/fetchers';
+import { fetchGithubTrending, fetchHackerNews, fetchRenminNews, fetchNhkNews, fetchEastmoneyNews } from '@/lib/fetchers';
 import { processCategory } from '@/lib/pipeline';
 import { cleanupRawContent } from '@/lib/pipeline';
 
@@ -26,9 +26,10 @@ export async function GET(request: NextRequest) {
   // 1. 采集所有已启用的数据源
   const fetchers = [
     { name: 'github-trending', fn: fetchGithubTrending },
-    { name: 'weibo', fn: fetchWeiboHotsearch },
     { name: 'hackernews', fn: fetchHackerNews },
-    { name: 'bbc', fn: fetchBbcNews },
+    { name: 'renmin', fn: fetchRenminNews },
+    { name: 'nhk', fn: fetchNhkNews },
+    { name: 'eastmoney', fn: fetchEastmoneyNews },
   ];
 
   for (const { name, fn } of fetchers) {
