@@ -1,4 +1,4 @@
-import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 import { PrismaClient } from '@/generated/prisma/client';
 
 const globalForPrisma = globalThis as unknown as {
@@ -6,21 +6,9 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient(): PrismaClient {
-  const url = process.env['DATABASE_URL'];
-  if (!url) {
-    throw new Error('DATABASE_URL is not set');
-  }
+  const url = process.env['DATABASE_URL'] || 'file:./dev.db';
 
-  // prisma+postgres:// 协议用于 Accelerate，提取实际 PG 连接或使用适配器
-  if (url.startsWith('prisma+postgres://')) {
-    // 使用 accelerateUrl 模式（Prisma Dev 本地开发）
-    return new PrismaClient({
-      accelerateUrl: url,
-    });
-  }
-
-  // 标准 PostgreSQL 连接字符串 — 使用 pg 适配器
-  const adapter = new PrismaPg({ connectionString: url });
+  const adapter = new PrismaBetterSqlite3({ url });
   return new PrismaClient({ adapter });
 }
 

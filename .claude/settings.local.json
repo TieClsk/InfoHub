@@ -25,7 +25,16 @@
       "Bash(node -e ' *)",
       "Bash(npx tsc *)",
       "WebSearch",
-      "Bash(npx shadcn@latest add card badge tabs select skeleton separator navigation-menu menubar -y)"
+      "Bash(npx shadcn@latest add card badge tabs select skeleton separator navigation-menu menubar -y)",
+      "Bash(docker --version)",
+      "Bash(where psql *)",
+      "Bash(npx tsx *)",
+      "Bash(node -e \"require\\('dotenv/config'\\)\")",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(curl -s http://localhost:3000/api/news?category=github)",
+      "Bash(curl -s http://localhost:3000/api/sources)",
+      "Bash(curl -s \"http://localhost:3000/api/github/trending?date=$\\(date +%Y-%m-%d\\)\")"
     ],
     "additionalDirectories": [
       "d:\\Study\\项目\\infohub-temp"

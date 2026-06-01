@@ -1,59 +1,64 @@
 import { prisma } from '@/lib/db';
 import { processBatch, translateToChinese } from '@/lib/deepseek';
-import type { AIProcessInput, AIProcessOutput } from '@/types';
+import type { AIProcessInput } from '@/types';
 
-const BATCH_SIZE = 8; // 每批发给 DeepSeek 的条数
+const BATCH_SIZE = 6;
 
-/**
- * 获取 DataSource 的 id→displayName 映射
- */
 async function getSourceNameMap(): Promise<Record<string, string>> {
   const sources = await prisma.dataSource.findMany({
-    select: { id: true, displayName: true },
+    select: { name: true, displayName: true },
   });
   const map: Record<string, string> = {};
   for (const s of sources) {
-    map[s.id] = s.displayName;
+    map[s.name] = s.displayName;
   }
   return map;
 }
 
 /**
- * 批量处理指定板块的未处理原始数据
+ * 按板块取未处理 RawContent，调用 DeepSeek 处理后写入 ProcessedContent
  */
 export async function processCategory(
   category: string,
-  limit = 50
+  limit = 30
 ): Promise<{ processed: number; skipped: number; errors: string[] }> {
   const errors: string[] = [];
   const sourceNameMap = await getSourceNameMap();
 
-  // 取该板块未处理的原始数据（按 fetchedAt 升序，先到先处理）
+  // 获取该板块的 sourceId 列表
+  const categorySources = await prisma.dataSource.findMany({
+    where: { category },
+    select: { name: true },
+  });
+  const sourceIds = categorySources.map((s) => s.name);
+
+  if (sourceIds.length === 0) {
+    return { processed: 0, skipped: 0, errors: [`No sources for category: ${category}`] };
+  }
+
+  // 取这些来源中未处理的 rawContent
   const rawItems = await prisma.rawContent.findMany({
-    where: {
-      // 通过检查 createdAt 时间判断是否为新数据
-      // 实际应用中可通过标记或对比 processedContent 来判断
-    },
+    where: { sourceId: { in: sourceIds } },
     orderBy: { fetchedAt: 'asc' },
     take: limit,
   });
 
-  // 过滤掉已处理的（查询 processedContent 中已有的 rawContentId）
-  const processedIds = await prisma.processedContent.findMany({
-    where: { rawContentId: { in: rawItems.map((r) => r.id).filter(Boolean) as string[] } },
+  // 过滤已处理
+  const rawIds = rawItems.map((r) => r.id);
+  const processedRows = await prisma.processedContent.findMany({
+    where: { rawContentId: { in: rawIds } },
     select: { rawContentId: true },
   });
   const processedIdSet = new Set(
-    processedIds.map((p) => p.rawContentId).filter(Boolean)
+    processedRows.map((p) => p.rawContentId).filter(Boolean)
   );
 
   const unprocessed = rawItems.filter((r) => !processedIdSet.has(r.id));
 
   if (unprocessed.length === 0) {
-    return { processed: 0, skipped: 0, errors: [] };
+    return { processed: 0, skipped: processedIdSet.size, errors: [] };
   }
 
-  // 分批处理
   for (let i = 0; i < unprocessed.length; i += BATCH_SIZE) {
     const batch = unprocessed.slice(i, i + BATCH_SIZE);
 
@@ -72,14 +77,12 @@ export async function processCategory(
 
       const results = await processBatch(aiInputs, sourceNameMap);
 
-      // 写入 ProcessedContent
       for (const result of results) {
         if (result.isDuplicate) continue;
 
         const rawItem = batch.find((r) => r.id === result.id);
         if (!rawItem) continue;
 
-        // 英文内容翻译
         let title = result.title;
         let summary = result.summary;
         if (rawItem.language === 'en') {
@@ -87,7 +90,7 @@ export async function processCategory(
             title = await translateToChinese(title);
             summary = await translateToChinese(summary);
           } catch {
-            // 翻译失败保留 AI 输出
+            // 翻译失败保留原文
           }
         }
 
@@ -97,30 +100,30 @@ export async function processCategory(
               rawContentId: rawItem.id,
               sourceId: rawItem.sourceId,
               sourceName: sourceNameMap[rawItem.sourceId] ?? rawItem.sourceId,
-              category: category,
+              category,
               subcategory: result.subcategory || null,
               title,
               summary,
               importance: result.importance,
-              tags: result.tags,
+              tags: JSON.stringify(result.tags),
               language: 'zh',
               publishedAt: rawItem.fetchedAt,
-              metadata: {
+              metadata: JSON.stringify({
                 originalTitle: rawItem.title,
                 originalLanguage: rawItem.language,
                 sourceRank: rawItem.sourceRank,
-              },
+              }),
             },
           });
         } catch (err) {
           errors.push(
-            `Failed to insert ProcessedContent for ${rawItem.id}: ${err instanceof Error ? err.message : String(err)}`
+            `Insert ${rawItem.id}: ${err instanceof Error ? err.message : String(err)}`
           );
         }
       }
     } catch (err) {
       errors.push(
-        `Batch ${i / BATCH_SIZE + 1} failed: ${err instanceof Error ? err.message : String(err)}`
+        `Batch ${i / BATCH_SIZE + 1}: ${err instanceof Error ? err.message : String(err)}`
       );
     }
   }
@@ -132,9 +135,6 @@ export async function processCategory(
   };
 }
 
-/**
- * 清理 14 天前的原始数据
- */
 export async function cleanupRawContent(retentionDays = 14): Promise<{
   deleted: number;
   duration: number;
@@ -143,25 +143,22 @@ export async function cleanupRawContent(retentionDays = 14): Promise<{
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - retentionDays);
 
-  // 先置空对应的 ProcessedContent.rawContentId
-  const expiredIds = await prisma.rawContent.findMany({
+  const expired = await prisma.rawContent.findMany({
     where: { createdAt: { lt: cutoff } },
     select: { id: true },
   });
-  const expiredIdList = expiredIds.map((r) => r.id);
+  const expiredIds = expired.map((r) => r.id);
 
-  if (expiredIdList.length > 0) {
+  if (expiredIds.length > 0) {
     await prisma.processedContent.updateMany({
-      where: { rawContentId: { in: expiredIdList } },
+      where: { rawContentId: { in: expiredIds } },
       data: { rawContentId: null },
     });
   }
 
-  // 删除过期原始数据
   const result = await prisma.rawContent.deleteMany({
     where: { createdAt: { lt: cutoff } },
   });
 
-  const duration = Date.now() - startTime;
-  return { deleted: result.count, duration };
+  return { deleted: result.count, duration: Date.now() - startTime };
 }

@@ -37,7 +37,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: { code: 'NO_DATA', message: '本周无高评分内容' } });
     }
 
-    const content = await generateWeeklySummary(items);
+    const content = await generateWeeklySummary(
+      items.map((i) => ({ ...i, tags: i.tags || '[]' }))
+    );
 
     // 写入周报
     const now = new Date();
@@ -49,7 +51,7 @@ export async function GET(request: NextRequest) {
         weekStart,
         weekEnd,
         content,
-        metadata: { itemCount: items.length },
+        metadata: JSON.stringify({ itemCount: items.length }),
       },
     });
 

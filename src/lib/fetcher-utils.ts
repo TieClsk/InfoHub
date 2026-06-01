@@ -1,4 +1,3 @@
-import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/db';
 import type { RawContentInput, FetchStatus } from '@/types';
 
@@ -31,8 +30,9 @@ export async function fetchWithRetry(
   throw new Error('unreachable');
 }
 
-function toJson(rawData: RawContentInput['rawData']): Prisma.InputJsonValue | undefined {
-  return rawData as Prisma.InputJsonValue | undefined;
+function toJsonStr(obj: unknown): string | null {
+  if (!obj) return null;
+  return JSON.stringify(obj);
 }
 
 export async function insertRawContents(
@@ -58,12 +58,12 @@ export async function insertRawContents(
           title: item.title,
           content: item.content,
           sourceRank: item.sourceRank,
-          rawData: toJson(item.rawData),
+          rawData: toJsonStr(item.rawData),
           language: item.language ?? 'zh',
         },
         update: {
           sourceRank: item.sourceRank,
-          rawData: toJson(item.rawData),
+          rawData: toJsonStr(item.rawData),
           title: item.title,
         },
       });
@@ -87,12 +87,12 @@ export async function insertRawContents(
                 title: item.title,
                 content: item.content,
                 sourceRank: item.sourceRank,
-                rawData: toJson(item.rawData),
+                rawData: toJsonStr(item.rawData),
                 language: item.language ?? 'zh',
               },
               update: {
                 sourceRank: item.sourceRank,
-                rawData: toJson(item.rawData),
+                rawData: toJsonStr(item.rawData),
                 title: item.title,
               },
             });

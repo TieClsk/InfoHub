@@ -13,24 +13,43 @@ export async function GET() {
         type: true,
         isActive: true,
         lastFetchAt: true,
-        fetchLogs: {
-          orderBy: { fetchedAt: 'desc' },
-          take: 1,
-          select: {
-            status: true,
-            total: true,
-            newCount: true,
-            fetchedAt: true,
-          },
-        },
       },
     });
 
-    const summary = sources.map((s) => ({
-      ...s,
-      lastLog: s.fetchLogs[0] ?? null,
-      fetchLogs: undefined,
-    }));
+    // 为每个源查询最近一次采集日志（sourceId = DataSource.name）
+    const sourceNames = sources.map((s) => s.name);
+    const recentLogs = await prisma.fetchLog.findMany({
+      where: { sourceId: { in: sourceNames } },
+      orderBy: { fetchedAt: 'desc' },
+    });
+
+    const logMap = new Map<string, typeof recentLogs[0]>();
+    for (const log of recentLogs) {
+      if (!logMap.has(log.sourceId)) {
+        logMap.set(log.sourceId, log);
+      }
+    }
+
+    const summary = sources.map((s) => {
+      const lastLog = logMap.get(s.name) ?? null;
+      return {
+        id: s.id,
+        name: s.name,
+        displayName: s.displayName,
+        category: s.category,
+        type: s.type,
+        isActive: s.isActive,
+        lastFetchAt: s.lastFetchAt,
+        lastLog: lastLog
+          ? {
+              status: lastLog.status,
+              total: lastLog.total,
+              newCount: lastLog.newCount,
+              fetchedAt: lastLog.fetchedAt,
+            }
+          : null,
+      };
+    });
 
     const response: ApiResponse<typeof summary> = {
       success: true,

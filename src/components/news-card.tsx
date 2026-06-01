@@ -7,8 +7,18 @@ interface NewsCardProps {
   sourceName: string;
   category: string;
   importance: number;
-  tags: string[];
+  tags: string[] | string;
   publishedAt: string;
+}
+
+function parseTags(tags: string[] | string): string[] {
+  if (Array.isArray(tags)) return tags;
+  try {
+    const parsed: unknown = JSON.parse(tags || '[]');
+    return Array.isArray(parsed) ? parsed as string[] : [];
+  } catch {
+    return [];
+  }
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -56,7 +66,7 @@ export function NewsCard({
         <p className="text-sm text-muted-foreground line-clamp-2">{summary}</p>
         <div className="flex items-center justify-between mt-3">
           <div className="flex gap-1 flex-wrap">
-            {tags.slice(0, 3).map((tag) => (
+            {parseTags(tags).slice(0, 3).map((tag) => (
               <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">
                 {tag}
               </Badge>

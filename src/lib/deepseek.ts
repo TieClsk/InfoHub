@@ -115,8 +115,12 @@ export async function processBatch(
  * 生成周报
  */
 export async function generateWeeklySummary(
-  items: Array<{ title: string; summary: string; category: string; tags: string[] }>
+  items: Array<{ title: string; summary: string; category: string; tags: string[] | string }>
 ): Promise<string> {
+  const normalized = items.map((item) => ({
+    ...item,
+    tags: typeof item.tags === 'string' ? (JSON.parse(item.tags) as string[]) : item.tags,
+  }));
   const prompt = PROMPTS.WEEKLY_SUMMARY.template.replace(
     '{{items}}',
     JSON.stringify(items, null, 2)
