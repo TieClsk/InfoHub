@@ -21,7 +21,7 @@ const fetchers = [
   { name: 'eastmoney', fn: fetchEastmoneyNews }, { name: 'sina-finance', fn: fetchSinaFinance },
 ];
 
-export async function POST() {
+export async function GET() {
   const logs: string[] = [];
 
   const results = await Promise.allSettled(

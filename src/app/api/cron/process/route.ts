@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processCategory } from '@/lib/pipeline';
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const category = new URL(request.url).searchParams.get('category') || 'domestic';
 
   try {

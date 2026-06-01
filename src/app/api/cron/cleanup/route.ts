@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cleanupRawContent } from '@/lib/pipeline';
 
-export async function POST() {
+export async function GET() {
   const retentionDays = parseInt(process.env['RAW_RETENTION_DAYS'] ?? '14', 10);
   try {
     const { deleted } = await cleanupRawContent(retentionDays);
