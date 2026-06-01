@@ -48,7 +48,14 @@ export default function OverviewPage() {
     (d.questions || []).map((q) => q)
   ).filter(Boolean).slice(0, 8);
 
-  useEffect(() => { chatEnd.current?.scrollIntoView({ behavior: 'smooth' }); }, [chat]);
+  const prevLen = useRef(0);
+  useEffect(() => {
+    // 仅在新消息增加时滚动到底部
+    if (chat.length > prevLen.current) {
+      chatEnd.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    prevLen.current = chat.length;
+  }, [chat]);
 
   const send = async (q: string) => {
     if (!q.trim() || sending) return;
