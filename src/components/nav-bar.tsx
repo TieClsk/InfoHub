@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Sun, Moon, Menu } from 'lucide-react';
+import { Sun, Moon, Menu, ExternalLink } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -11,9 +11,10 @@ const NAV_ITEMS = [
   { href: '/', label: '首页' },
   { href: '/overview', label: '速览' },
   { href: '/news', label: '新闻' },
-  { href: '/github', label: 'GitHub' },
+  { href: '/github', label: 'GitHub热榜' },
   { href: '/weekly', label: '周报' },
   { href: '/sources', label: '数据源' },
+  { href: '/guestbook', label: '留言' },
 ];
 
 export function NavBar() {
@@ -45,6 +46,16 @@ export function NavBar() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <a
+            href="https://github.com/TieClsk/InfoHub"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="GitHub 仓库"
+          >
+            <Button variant="ghost" size="icon" aria-label="GitHub">
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </a>
           {mounted && (
             <Button
               variant="ghost"

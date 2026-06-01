@@ -109,3 +109,12 @@ model RawContent {
   @@index([sourceId, fetchedAt])
   @@index([createdAt])
 }
+
+model Guestbook {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  author    String   @default("匿名")
+  likes     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
