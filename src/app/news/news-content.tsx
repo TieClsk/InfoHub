@@ -25,20 +25,32 @@ export function NewsContent() {
   const router = useRouter();
   const category = searchParams.get('category') ?? 'domestic';
   const page = parseInt(searchParams.get('page') ?? '1', 10);
-  const [sortBy, setSortBy] = useState<'rating' | 'hot'>('rating');
+  const [sortBy, setSortBy] = useState<'rating' | 'multi' | 'hot'>('rating');
 
   const { data, isLoading } = useSWR<ApiResponse<Array<Record<string, unknown>>>>(
     `/api/news?category=${category}&page=${page}&limit=20`,
     fetcher
   );
 
-  // Weibo: 支持按热搜排名排序
   const items = data?.data ? [...data.data] : [];
   const getHotRank = (meta: string | null) => {
     if (!meta) return 0;
     try { return (JSON.parse(meta) as { sourceRank?: number }).sourceRank || 0; } catch { return 0; }
   };
-  if (category === 'weibo' && sortBy === 'hot') {
+  const getSourceCount = (meta: string | null) => {
+    if (!meta) return 1;
+    try { return (JSON.parse(meta) as { sourceCount?: number }).sourceCount || 1; } catch { return 1; }
+  };
+
+  if (sortBy === 'multi') {
+    // 多源优先：先按 sourceCount 降序，再按 importance 降序
+    items.sort((a, b) => {
+      const scA = getSourceCount((a['metadata'] as string) || null);
+      const scB = getSourceCount((b['metadata'] as string) || null);
+      if (scB !== scA) return scB - scA;
+      return (b['importance'] as number) - (a['importance'] as number);
+    });
+  } else if (category === 'weibo' && sortBy === 'hot') {
     items.sort((a, b) => getHotRank((b['metadata'] as string) || null) - getHotRank((a['metadata'] as string) || null));
   }
 
@@ -46,22 +58,28 @@ export function NewsContent() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">新闻列表</h1>
-        {category === 'weibo' && (
-          <div className="flex items-center rounded-lg border">
-            <Button
-              variant={sortBy === 'rating' ? 'default' : 'ghost'} size="sm"
-              onClick={() => setSortBy('rating')} className="rounded-r-none"
-            >
-              <BarChart3 className="h-3.5 w-3.5 mr-1" />评分
-            </Button>
+        <div className="flex items-center rounded-lg border">
+          <Button
+            variant={sortBy === 'rating' ? 'default' : 'ghost'} size="sm"
+            onClick={() => setSortBy('rating')} className="rounded-r-none"
+          >
+            <BarChart3 className="h-3.5 w-3.5 mr-1" />评分
+          </Button>
+          <Button
+            variant={sortBy === 'multi' ? 'default' : 'ghost'} size="sm"
+            onClick={() => setSortBy('multi')} className="rounded-none border-x"
+          >
+            多源
+          </Button>
+          {category === 'weibo' && (
             <Button
               variant={sortBy === 'hot' ? 'default' : 'ghost'} size="sm"
               onClick={() => setSortBy('hot')} className="rounded-l-none"
             >
               <TrendingUp className="h-3.5 w-3.5 mr-1" />热度
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <Tabs
