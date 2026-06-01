@@ -38,12 +38,18 @@ export async function GET(request: NextRequest) {
     { name: 'eastmoney', fn: fetchEastmoneyNews }, { name: 'sina-finance', fn: fetchSinaFinance },
   ];
 
-  for (const { name, fn } of fetchers) {
-    try {
+  // 并发采集（21个源同时抓，3秒内完成）
+  const fetchResults = await Promise.allSettled(
+    fetchers.map(async ({ name, fn }) => {
       const r = await fn();
-      logs.push(`[fetch] ${name}: ${r.success ? `OK ${r.data.length}` : 'FAIL'}`);
-    } catch (err) {
-      logs.push(`[fetch] ${name}: ERR`);
+      return { name, ok: r.success, count: r.data.length };
+    })
+  );
+  for (const r of fetchResults) {
+    if (r.status === 'fulfilled') {
+      logs.push(`[fetch] ${r.value.name}: ${r.value.ok ? `OK ${r.value.count}` : 'FAIL'}`);
+    } else {
+      logs.push(`[fetch] ERR: ${r.reason}`);
     }
   }
 
