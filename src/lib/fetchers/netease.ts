@@ -1,38 +1,48 @@
+import * as cheerio from 'cheerio';
 import { fetchWithTimeout, insertRawContents, writeFetchLog } from '@/lib/fetcher-utils';
 import type { FetcherResult, RawContentInput } from '@/types';
 
 const SOURCE_ID = 'netease';
-const API = 'https://c.m.163.com/nc/article/headline/T1348647853363/0-100.html';
+const URLS = [
+  'https://news.163.com/rank/',
+  'https://news.163.com/domestic/',
+  'https://news.163.com/world/',
+  'https://news.163.com/tech/',
+];
 
 export async function fetchNetease(): Promise<FetcherResult<RawContentInput>> {
   const startTime = Date.now();
   const fetchedAt = new Date();
+  const allItems: RawContentInput[] = [];
+  const seen = new Set<string>();
 
-  try {
-    const response = await fetchWithTimeout(API, 8000);
-    const json = (await response.json()) as Record<string, Array<{ docid: string; title: string; digest: string; url: string; source: string }>>;
-    const key = Object.keys(json)[0];
-    const items = (key ? json[key] : []) || [];
+  for (const url of URLS) {
+    try {
+      const response = await fetchWithTimeout(url, 8000);
+      const html = await response.text();
+      const $ = cheerio.load(html);
 
-    const rawItems: RawContentInput[] = items.map((item) => ({
-      sourceId: SOURCE_ID,
-      externalId: item.docid,
-      externalUrl: item.url || `https://3g.163.com/news/${item.docid}`,
-      title: item.title || '',
-      content: item.digest,
-      rawData: item as unknown as Record<string, unknown>,
-      language: 'zh',
-    }));
+      $('a').each((i, el) => {
+        const title = $(el).text().trim();
+        const href = $(el).attr('href') || '';
+        if (title.length < 6 || title.length > 150) return;
+        if (!href.includes('163.com') || !href.includes('article')) return;
+        if (seen.has(title.slice(0, 25))) return;
+        seen.add(title.slice(0, 25));
 
-    const valid = rawItems.filter((i) => i.title.length > 3);
-    const result = await insertRawContents(valid, SOURCE_ID);
-    const duration = Date.now() - startTime;
-    await writeFetchLog(SOURCE_ID, result.newCount > 0 ? 'success' : 'partial', result.total, result.newCount, duration);
-    return { success: result.newCount > 0, data: valid, source: SOURCE_ID, fetchedAt };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    await writeFetchLog(SOURCE_ID, 'failed', 0, 0, duration, errorMsg);
-    return { success: false, data: [], source: SOURCE_ID, fetchedAt, error: errorMsg };
+        allItems.push({
+          sourceId: SOURCE_ID,
+          externalId: href.split('/').pop()?.replace('.html', '')?.slice(0, 50) || `ne-${i}`,
+          externalUrl: href.startsWith('http') ? href : `https:${href}`,
+          title, language: 'zh',
+        });
+      });
+    } catch { /* skip */ }
   }
+
+  const unique = allItems.filter((item, idx, arr) => arr.findIndex((t) => t.title === item.title) === idx).slice(0, 120);
+  const result = await insertRawContents(unique, SOURCE_ID);
+  const duration = Date.now() - startTime;
+  await writeFetchLog(SOURCE_ID, result.newCount > 0 ? 'success' : 'failed', result.total, result.newCount, duration);
+  return { success: result.newCount > 0, data: unique, source: SOURCE_ID, fetchedAt };
 }
