@@ -41,7 +41,7 @@ function getSourceUrl(metadata?: string | null, sourceUrl?: string | null): stri
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  domestic: '国内',
+  domestic: '热点',
   weibo: '微博',
   international: '国际',
   ai: 'AI',

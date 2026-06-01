@@ -178,8 +178,9 @@ ${itemsText}
 重要：如果有可能是在说同一件事（即使措辞不同），就判断为 sameEvent: true。
 
 返回 JSON：
-- 同一事件：{"sameEvent": true, "mergedTitle": "纯中文综合标题（英文必须翻译）", "mergedSummary": "50-100字纯中文简介（综合各来源，不要重复标题，不要URL）", "importance": 8-10, "tags": ["中文标签"], "subcategory": "中文分类", "primaryIndex": 0}
-- 完全不同事件：{"sameEvent": false}`,
+- 同一事件：{"sameEvent": true, "mergedTitle": "纯中文标题", "mergedSummary": "50-100字中文简介，综合各来源信息，禁止重复标题和URL", "importance": 8-10, "tags": ["具体标签1","具体标签2"], "subcategory": "分类", "primaryIndex": 0}
+- 完全不同事件：{"sameEvent": false}
+（tags 不能为空，不能用"新闻""热点"等宽泛词）`,
       },
     ]);
 
@@ -259,12 +260,13 @@ export async function scoreSingle(items: VerdictItem[]): Promise<
 ${itemsText}
 
 要求（严格遵守）：
-1. title：必须是纯中文标题。英文标题必须翻译为中文。原标题无意义的根据内容自拟标题
-2. summary：50-100字的中文新闻简介。介绍新闻的核心内容和背景，不要重复标题，绝对不要包含URL链接。如果原标题和内容无法提取有效信息，根据标题关键词自定义一个合理的简介
-3. 评分 1-10，单源新闻 5-7 分
-4. 1-3 个中文标签
+1. title：必须是纯中文标题。英文标题翻译为中文
+2. summary：50-100字中文简介，介绍核心内容和背景。禁止重复标题，禁止包含URL
+3. importance：1-10评分，单源5-7分
+4. tags：每条必须有1-3个中文标签。标签要具体（公司名、技术名、领域名），禁止使用"新闻""热点""国内""国际""科技"等宽泛词
+5. subcategory：二级分类
 
-返回 JSON 数组：[{"id":"...", "title":"中文标题", "summary":"50-100字中文简介", "importance":6, "tags":["中文标签"], "subcategory":"中文分类"}]`,
+返回 JSON 数组。每条必须包含所有字段，tags 不能为空数组：[{"id":"...", "title":"中文标题", "summary":"中文简介", "importance":6, "tags":["标签1","标签2"], "subcategory":"分类"}]`,
       },
     ]);
 
@@ -325,6 +327,30 @@ export async function translateToChinese(text: string): Promise<string> {
 /**
  * 单条摘要重新生成（标题≈摘要时修复）
  */
+export async function regenerateTags(title: string, summary: string): Promise<string[]> {
+  if (!API_KEY) return [];
+
+  try {
+    const content = await chatCompletion([
+      { role: 'system', content: '你是新闻标签助手。只返回 JSON 字符串数组，不要其他内容。' },
+      {
+        role: 'user',
+        content: `为以下新闻生成 1-3 个中文标签（技术栈、公司名、具体领域等有区分度的标签，不要通用标签如"新闻""热点"）：
+
+标题：${title}
+摘要：${summary}
+
+返回 JSON 数组如：["标签1", "标签2"]`,
+      },
+    ]);
+    const jsonStr = content.match(/\[[\s\S]*\]/)?.[0] || content;
+    const tags: unknown = JSON.parse(jsonStr);
+    return Array.isArray(tags) ? (tags as string[]).slice(0, 3) : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function regenerateSummary(title: string, sourceName: string): Promise<string> {
   if (!API_KEY) return title;
 

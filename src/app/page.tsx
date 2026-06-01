@@ -1,7 +1,7 @@
 import { CategorySection } from '@/components/category-section';
 
 const CATEGORIES: { key: string; label: string; icon: string }[] = [
-  { key: 'domestic', label: '国内热点', icon: '🔥' },
+  { key: 'domestic', label: '热点新闻', icon: '🔥' },
   { key: 'weibo', label: '微博舆论', icon: '💬' },
   { key: 'international', label: '国际热点', icon: '🌍' },
   { key: 'ai', label: 'AI 动态', icon: '🤖' },

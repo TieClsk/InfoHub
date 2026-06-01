@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ApiResponse } from '@/types';
 
 const CATEGORIES = [
-  { key: 'domestic', label: '国内' },
+  { key: 'domestic', label: '热点' },
   { key: 'weibo', label: '微博' },
   { key: 'international', label: '国际' },
   { key: 'ai', label: 'AI' },

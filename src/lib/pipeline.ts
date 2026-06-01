@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import { clusterByTitle, verifyAndMerge, scoreSingle, translateToChinese, filterIrrelevant, regenerateSummary } from '@/lib/deepseek';
+import { clusterByTitle, verifyAndMerge, scoreSingle, translateToChinese, filterIrrelevant, regenerateSummary, regenerateTags } from '@/lib/deepseek';
 import type { MergedResult } from '@/lib/deepseek';
 
 function shareSubstring(a: string, b: string, minLen = 5): boolean {
@@ -325,29 +325,43 @@ export async function processCategory(
     }
   }
 
-  // 6. 后处理：修复摘要≈标题的条目
-  const badSummaries = await prisma.processedContent.findMany({
+  // 6. 后处理：修复摘要≈标题 + 缺失标签
+  const allItems = await prisma.processedContent.findMany({
     where: { category },
-    select: { id: true, title: true, summary: true, sourceName: true },
+    select: { id: true, title: true, summary: true, sourceName: true, tags: true },
   });
 
-  let fixedCount = 0;
-  for (const item of badSummaries) {
-    // 摘要≈标题 或 摘要太短
-    if (item.summary.trim() === item.title.trim() || item.summary.trim().length < 15) {
+  let fixedSummaries = 0;
+  let fixedTags = 0;
+
+  for (const item of allItems) {
+    // 摘要≈标题 或 太短
+    const badSummary = item.summary.trim() === item.title.trim() || item.summary.trim().length < 15;
+    // 标签缺失
+    let hasTags = false;
+    try {
+      const t = JSON.parse(item.tags || '[]');
+      hasTags = Array.isArray(t) && t.length > 0;
+    } catch { /* no tags */ }
+
+    if (badSummary || !hasTags) {
       try {
-        const newSummary = await regenerateSummary(item.title, item.sourceName);
-        if (newSummary !== item.title) {
-          await prisma.processedContent.update({
-            where: { id: item.id },
-            data: { summary: newSummary },
-          });
-          fixedCount++;
+        const updates: Record<string, string> = {};
+        if (badSummary) {
+          const s = await regenerateSummary(item.title, item.sourceName);
+          if (s !== item.title) { updates['summary'] = s; fixedSummaries++; }
+        }
+        if (!hasTags) {
+          const tags = await regenerateTags(item.title, item.summary);
+          if (tags.length > 0) { updates['tags'] = JSON.stringify(tags); fixedTags++; }
+        }
+        if (Object.keys(updates).length > 0) {
+          await prisma.processedContent.update({ where: { id: item.id }, data: updates });
         }
       } catch { /* skip */ }
     }
   }
-  if (fixedCount > 0) console.log(`  [fix] regenerated ${fixedCount} bad summaries`);
+  if (fixedSummaries > 0 || fixedTags > 0) console.log(`  [fix] summaries=${fixedSummaries} tags=${fixedTags}`);
 
   return {
     processed: mergedResults.length + singleResults.length,
