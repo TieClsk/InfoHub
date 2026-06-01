@@ -178,7 +178,7 @@ ${itemsText}
 重要：如果有可能是在说同一件事（即使措辞不同），就判断为 sameEvent: true。
 
 返回 JSON：
-- 同一事件：{"sameEvent": true, "mergedTitle": "纯中文标题", "mergedSummary": "50-100字中文简介，综合各来源信息，禁止重复标题和URL", "importance": 8-10, "tags": ["具体标签1","具体标签2"], "subcategory": "分类", "primaryIndex": 0}
+- 同一事件：{"sameEvent": true, "mergedTitle": "纯中文标题", "mergedSummary": "50-100字中文简介，综合各来源信息，禁止重复标题和URL", "importance": 0.00-10.00小数（多源交叉验证的事件可适当加分但不用保证高分，根据事件本身重要性判断）, "tags": ["具体标签1","具体标签2"], "subcategory": "分类", "primaryIndex": 0}
 - 完全不同事件：{"sameEvent": false}
 （tags 不能为空，不能用"新闻""热点"等宽泛词）`,
       },
@@ -214,7 +214,7 @@ ${itemsText}
     return {
       mergedTitle: result.mergedTitle || primary.title,
       mergedSummary: result.mergedSummary || primary.content.slice(0, 100),
-      importance: Math.min(10, (result.importance ?? (sourceNames.length >= 3 ? 9 : sourceNames.length >= 2 ? 8 : 7))),
+      importance: Math.min(10, (result.importance ?? 5) + (sourceNames.length >= 3 ? 1.5 : sourceNames.length >= 2 ? 0.8 : 0)),
       tags: result.tags || [],
       subcategory: result.subcategory || '',
       sourceNames,
@@ -262,7 +262,7 @@ ${itemsText}
 要求（严格遵守）：
 1. title：必须是纯中文标题。英文标题翻译为中文
 2. summary：50-100字中文简介，介绍核心内容和背景。禁止重复标题，禁止包含URL
-3. importance：1-10评分，单源5-7分
+3. importance：0.00-10.00小数评分。基于事件本身重要性打分（不用给所有新闻高分，平淡新闻给3-5分，重要新闻6-8分，极重大才9+分）
 4. tags：每条必须有1-3个中文标签。标签要具体（公司名、技术名、领域名），禁止使用"新闻""热点""国内""国际""科技"等宽泛词
 5. subcategory：二级分类
 

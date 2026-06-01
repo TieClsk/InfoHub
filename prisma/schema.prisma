@@ -44,7 +44,7 @@ model ProcessedContent {
   subcategory   String?
   title         String
   summary       String
-  importance    Int      @default(5)
+  importance    Float    @default(5)
   tags          String   @default("[]") // JSON 字符串数组
   language      String   @default("zh")
   metadata      String?                 // JSON 字符串
