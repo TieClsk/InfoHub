@@ -19,9 +19,8 @@ interface OverviewResult {
   items: Array<{ title: string; summary: string }>;
 }
 
-// 内存缓存（30分钟有效）
+// 内存缓存（随每日数据刷新而更新，不自动过期）
 let cache: { data: Record<string, OverviewResult>; ts: number } | null = null;
-const TTL = 30 * 60 * 1000; // 30 min
 
 async function generateAll(): Promise<Record<string, OverviewResult>> {
   const results: Record<string, OverviewResult> = {};
@@ -52,14 +51,13 @@ async function generateAll(): Promise<Record<string, OverviewResult>> {
 }
 
 export async function GET() {
-  // 返回缓存（如果有效）
-  if (cache && Date.now() - cache.ts < TTL) {
+  // 优先返回缓存（由每日 cron 数据刷新时更新）
+  if (cache) {
     const response: ApiResponse<Record<string, OverviewResult>> = { success: true, data: cache.data };
-    return NextResponse.json(response, {
-      headers: { 'X-Cache': 'HIT' },
-    });
+    return NextResponse.json(response, { headers: { 'X-Cache': 'HIT' } });
   }
 
+  // 首次访问无缓存时实时生成
   try {
     const results = await generateAll();
     const response: ApiResponse<typeof results> = { success: true, data: results };

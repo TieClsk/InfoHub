@@ -63,6 +63,15 @@ export async function GET(request: NextRequest) {
     logs.push(`[cleanup] ERROR: ${err instanceof Error ? err.message : String(err)}`);
   }
 
+  // 4. 刷新速览缓存
+  try {
+    const baseUrl = request.nextUrl.origin;
+    await fetch(`${baseUrl}/api/ai/overview`, { method: 'POST' });
+    logs.push('[overview] cache refreshed');
+  } catch (err) {
+    logs.push(`[overview] ERROR: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   const totalDuration = Date.now() - start;
   logs.push(`[done] total duration: ${totalDuration}ms`);
 
