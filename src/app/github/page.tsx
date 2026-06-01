@@ -2,26 +2,15 @@ import { NewsCard } from '@/components/news-card';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-interface GithubItem {
-  id: string;
-  title: string;
-  summary: string;
-  sourceName: string;
-  importance: number;
-  tags: string;
-  publishedAt: string;
-  metadata: string | null;
-}
-
 export default async function GithubPage() {
-  let repos: GithubItem[] = [];
+  let repos: Array<Record<string, unknown>> = [];
   try {
     const { prisma } = await import('@/lib/db');
     repos = (await prisma.processedContent.findMany({
       where: { category: 'github' },
       orderBy: { importance: 'desc' },
       take: 25,
-    })) as unknown as GithubItem[];
+    })) as unknown as Array<Record<string, unknown>>;
   } catch {
     // DB not available
   }
@@ -32,47 +21,19 @@ export default async function GithubPage() {
 
       {repos.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {repos.map((repo) => {
-            let sourceRank: number | undefined;
-            let sourceUrl: string | undefined;
-            try {
-              if (repo.metadata) {
-                const meta = JSON.parse(repo.metadata) as { sourceRank?: number; sourceUrl?: string };
-                sourceRank = meta.sourceRank ?? undefined;
-                sourceUrl = meta.sourceUrl ?? undefined;
-              }
-            } catch { /* ignore */ }
-
-            return (
-              <Card key={repo.id}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-semibold text-sm line-clamp-2">
-                      {sourceUrl ? (
-                        <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                          {repo.title}
-                        </a>
-                      ) : (
-                        repo.title
-                      )}
-                    </h3>
-                    {sourceRank ? (
-                      <span className="text-xs font-medium text-amber-500 shrink-0 ml-2">
-                        ⭐ {sourceRank} today
-                      </span>
-                    ) : null}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground line-clamp-2">{repo.summary}</p>
-                  <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-                    <span>{repo.sourceName}</span>
-                    <span>AI 评分：{repo.importance}/10</span>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {repos.map((repo) => (
+            <NewsCard
+              key={repo['id'] as string}
+              title={repo['title'] as string}
+              summary={repo['summary'] as string}
+              sourceName={repo['sourceName'] as string}
+              category={repo['category'] as string}
+              importance={repo['importance'] as number}
+              tags={repo['tags'] as string}
+              publishedAt={repo['publishedAt'] as string}
+              metadata={repo['metadata'] as string | null}
+            />
+          ))}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
