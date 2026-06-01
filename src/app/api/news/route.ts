@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     const rows = await prisma.processedContent.findMany({
       where,
       orderBy: [{ importance: 'desc' }, { publishedAt: 'desc' }],
+      skip: sort === 'multi' ? 0 : skip,
       take: fetchLimit,
       select: {
         id: true, sourceName: true, category: true, subcategory: true,
@@ -38,8 +39,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const total = rows.length;
-    const paged = sort === 'multi' ? rows.slice(skip, skip + limit) : rows.slice(skip, skip + limit);
+    // 多源：JS 排序后分页；普通：Prisma 已分页
+    const paged = sort === 'multi' ? rows.slice(skip, skip + limit) : rows;
+    const total = sort === 'multi'
+      ? rows.length
+      : await prisma.processedContent.count({ where });
 
     const response: ApiResponse<typeof paged> = {
       success: true,
