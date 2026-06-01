@@ -1,6 +1,4 @@
-// InfoHub Prisma Schema — Vercel 部署用 PostgreSQL
-//
-// key 字段保持 String 类型以兼容现有代码（tags/metadata/rawData 在应用层做 JSON 序列化）
+// InfoHub Prisma Schema — Vercel/PostgreSQL
 
 generator client {
   provider = "prisma-client"
@@ -8,12 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
-
-// ═══════════════════════════════════════════════════════════
-// 长期保留
-// ═══════════════════════════════════════════════════════════
 
 model DataSource {
   id          String   @id @default(cuid())
@@ -21,7 +15,7 @@ model DataSource {
   displayName String
   category    String
   type        String
-  config      String   @db.Text // JSON 字符串
+  config      String   @db.Text
   schedule    String?
   isActive    Boolean  @default(true)
   lastFetchAt DateTime?
@@ -96,10 +90,6 @@ model FetchLog {
   @@index([sourceId, fetchedAt])
   @@index([fetchedAt])
 }
-
-// ═══════════════════════════════════════════════════════════
-// 原始数据（14 天自动清理）
-// ═══════════════════════════════════════════════════════════
 
 model RawContent {
   id          String   @id @default(cuid())
