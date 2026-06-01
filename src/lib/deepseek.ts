@@ -159,21 +159,42 @@ export async function generateWeeklySummary(
 /**
  * 翻译英文内容为中文
  */
+function isChinese(text: string): boolean {
+  // 如果中文字符占比超过 30%，视为已是中文
+  const chineseChars = text.match(/[一-鿿]/g);
+  if (!chineseChars) return false;
+  return chineseChars.length / text.length > 0.3;
+}
+
+function needsTranslation(text: string): boolean {
+  if (!text || text.trim().length < 5) return false;
+  if (isChinese(text)) return false;
+  // 过滤掉纯 URL、代码、数字符号等
+  const alphaChars = text.match(/[a-zA-Z]/g);
+  return alphaChars !== null && alphaChars.length > 10;
+}
+
 export async function translateToChinese(text: string): Promise<string> {
   if (!API_KEY) return text;
+  if (!needsTranslation(text)) return text;
 
   try {
     const content = await chatCompletion([
       {
         role: 'system',
         content:
-          '你是一个专业翻译。将以下英文内容翻译成中文。只返回译文，不要加任何解释。',
+          '你是一个专业翻译。将以下英文内容翻译成中文。只返回译文，不要加任何解释。如果输入不是英文或无实质内容，原样返回。',
       },
       { role: 'user', content: text },
     ]);
-    return content.trim();
+    const result = content.trim();
+    // 如果返回的是 meta 响应（如"好的，请提供..."），说明翻译失败
+    if (result.includes('请提供') || result.includes('好的') || result.length < 5) {
+      return text;
+    }
+    return result;
   } catch {
-    return text; // 翻译失败返回原文
+    return text;
   }
 }
 

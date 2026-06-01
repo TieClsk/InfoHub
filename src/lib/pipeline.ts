@@ -4,6 +4,31 @@ import type { AIProcessInput } from '@/types';
 
 const BATCH_SIZE = 10;
 
+// AI 板块非科技关键词 — 代码层兜底过滤
+const NON_TECH_KEYWORDS = [
+  '歌曲', '音乐', '歌手', '演唱', '专辑', '歌词', '乐队',
+  '足球', '篮球', '体育', '比赛', '联赛', '运动员',
+  '电影', '电视剧', '综艺', '娱乐', '明星', '演员',
+  '美食', '菜谱', '烹饪', '旅游', '景点',
+  '猫', '狗', '宠物',
+  '税收', '选举', '政党', '军事',
+  '天文', '行星', '小行星', '超新星', '望远镜',
+  '历史', '考古', '古代',
+  '鲑鱼', '虹鳟', '鱼类', '栖息', '生态',
+  '航空', '飞机', '航班', '飞行员',
+  '招聘', '求职', '面试',
+];
+
+function isNonTechContent(title: string, tags: string): boolean {
+  const combined = (title + tags).toLowerCase();
+  // 如果标题超过 100 字符且不含 AI/技术关键词，很可能是非科技趣闻
+  if (title.length > 80) {
+    const techWords = /ai|模型|代码|编程|开源|api|数据|学习|芯片|gpu|模型|安全|隐私/i;
+    if (!techWords.test(title)) return true;
+  }
+  return NON_TECH_KEYWORDS.some((kw) => combined.includes(kw));
+}
+
 async function getSourceNameMap(): Promise<Record<string, string>> {
   const sources = await prisma.dataSource.findMany({
     select: { name: true, displayName: true },
@@ -79,7 +104,11 @@ export async function processCategory(
 
       for (const result of results) {
         if (result.isDuplicate) continue;
-        if (category === 'ai' && result.irrelevant) continue; // AI 板块过滤无关内容
+        if (category === 'ai' && result.irrelevant) continue;
+        // 代码层兜底过滤：检测非科技关键词
+        if (category === 'ai' && isNonTechContent(result.title, JSON.stringify(result.tags))) {
+          continue;
+        }
 
         const rawItem = batch.find((r) => r.id === result.id);
         if (!rawItem) continue;
