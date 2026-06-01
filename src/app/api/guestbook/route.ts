@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { verifyToken, getTokenFromCookie } from '@/lib/auth';
 import type { ApiResponse } from '@/types';
 
 export async function GET(request: NextRequest) {
@@ -67,6 +68,25 @@ export async function PATCH(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true, data: item });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' } },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const token = getTokenFromCookie(request.headers.get('cookie'));
+  const user = token ? await verifyToken(token) : null;
+  if (!user) {
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED' } }, { status: 401 });
+  }
+
+  try {
+    const { id } = (await request.json()) as { id: string };
+    await prisma.guestbook.delete({ where: { id } });
+    return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' } },

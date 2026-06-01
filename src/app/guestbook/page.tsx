@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR, { mutate } from 'swr';
-import { Heart, Send, User } from 'lucide-react';
+import { Heart, Send, User, Trash2, LogIn } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -21,6 +22,13 @@ export default function GuestbookPage() {
   const [author, setAuthor] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [liked, setLiked] = useState<Set<string>>(new Set());
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth/check').then(r => r.json()).then(d => {
+      if (d.data?.loggedIn) setIsAdmin(true);
+    }).catch(() => {});
+  }, []);
 
   const { data, isLoading } = useSWR<{ success: boolean; data: Message[]; meta: { total: number } }>(
     '/api/guestbook',
@@ -41,6 +49,15 @@ export default function GuestbookPage() {
     mutate('/api/guestbook');
   };
 
+  const handleDelete = async (id: string) => {
+    await fetch('/api/guestbook', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    mutate('/api/guestbook');
+  };
+
   const handleLike = async (id: string) => {
     if (liked.has(id)) return;
     setLiked((s) => new Set(s).add(id));
@@ -54,8 +71,19 @@ export default function GuestbookPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">留言板</h1>
-      <p className="text-sm text-muted-foreground -mt-4">反馈问题、提出建议，公开可见</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">留言板</h1>
+          <p className="text-sm text-muted-foreground">反馈问题、提出建议，公开可见</p>
+        </div>
+        {isAdmin ? (
+          <span className="text-xs text-green-600 font-medium">管理员模式</span>
+        ) : (
+          <Link href="/login" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <LogIn className="h-3 w-3" /> 登录
+          </Link>
+        )}
+      </div>
 
       {/* 提交区 */}
       <div className="space-y-3 border rounded-xl p-4">
@@ -105,10 +133,20 @@ export default function GuestbookPage() {
                   </span>
                   <time>{new Date(msg.createdAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</time>
                 </div>
-                <button
-                  onClick={() => handleLike(msg.id)}
-                  disabled={liked.has(msg.id)}
-                  className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors ${
+                <div className="flex items-center gap-1">
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleDelete(msg.id)}
+                      className="flex items-center gap-1 text-xs px-2 py-1 rounded-md text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+                      title="删除留言"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleLike(msg.id)}
+                    disabled={liked.has(msg.id)}
+                    className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors ${
                     liked.has(msg.id) ? 'text-red-400 cursor-default' : 'text-muted-foreground hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950'
                   }`}
                 >
@@ -116,6 +154,7 @@ export default function GuestbookPage() {
                   {msg.likes}
                 </button>
               </div>
+            </div>
             </div>
           ))}
           {data.meta && (
