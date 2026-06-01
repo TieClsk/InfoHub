@@ -7,6 +7,7 @@ import {
   fetchHackerNews, fetch36kr, fetchInfoq, fetchGithubTrending,
   fetchEastmoneyNews, fetchSinaFinance,
   fetchThepaper, fetchHuanqiu, fetchToutiao, fetchNetease,
+  fetchNpr, fetchFrance24, fetchRt,
 } from '../src/lib/fetchers';
 import { processCategory } from '../src/lib/pipeline';
 
@@ -24,6 +25,7 @@ const FETCHERS: Fetcher[] = [
   { name: 'hackernews', fn: fetchHackerNews }, { name: '36kr', fn: fetch36kr },
   { name: 'infoq', fn: fetchInfoq }, { name: 'github-trending', fn: fetchGithubTrending },
   { name: 'eastmoney', fn: fetchEastmoneyNews }, { name: 'sina-finance', fn: fetchSinaFinance },
+  { name: 'npr', fn: fetchNpr }, { name: 'france24', fn: fetchFrance24 }, { name: 'rt', fn: fetchRt },
 ];
 
 async function fetchOne(f: Fetcher, retries = 2): Promise<number> {

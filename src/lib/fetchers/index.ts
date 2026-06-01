@@ -17,3 +17,6 @@ export { fetchThepaper } from './thepaper';
 export { fetchHuanqiu } from './huanqiu';
 export { fetchToutiao } from './toutiao';
 export { fetchNetease } from './netease';
+export { fetchNpr } from './npr';
+export { fetchFrance24 } from './france24';
+export { fetchRt } from './rt';
