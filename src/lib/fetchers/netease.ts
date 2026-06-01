@@ -2,7 +2,7 @@ import { fetchWithTimeout, insertRawContents, writeFetchLog } from '@/lib/fetche
 import type { FetcherResult, RawContentInput } from '@/types';
 
 const SOURCE_ID = 'netease';
-const API = 'https://c.m.163.com/nc/article/headline/T1348647853363/0-80.html';
+const API = 'https://c.m.163.com/nc/article/headline/T1348647853363/0-100.html';
 
 export async function fetchNetease(): Promise<FetcherResult<RawContentInput>> {
   const startTime = Date.now();

@@ -29,13 +29,13 @@ export async function fetchThepaper(): Promise<FetcherResult<RawContentInput>> {
       rawItems.push({ sourceId: SOURCE_ID, externalId: href.split('/').pop()?.slice(0, 50) || `tp-${i}`, externalUrl: url, title, language: 'zh' });
     });
 
-    // 补量：如不足 50 条，扩大选择器
-    if (rawItems.length < 50) {
+    // 补量：扩大选择器捕获更多新闻链接
+    if (rawItems.length < 80) {
       $('a').each((i, el) => {
         const $a = $(el);
         const title = $a.text().trim();
         const href = $a.attr('href') || '';
-        if (title.length >= 8 && title.length < 150 && href.includes('thepaper.cn') && !seen.has(title.slice(0, 30))) {
+        if (title.length >= 6 && title.length < 200 && (href.includes('thepaper.cn') || href.startsWith('/')) && !seen.has(title.slice(0, 25))) {
           seen.add(title.slice(0, 30));
           rawItems.push({ sourceId: SOURCE_ID, externalId: `tp-a-${i}`, externalUrl: href.startsWith('http') ? href : `https://www.thepaper.cn${href}`, title, language: 'zh' });
         }
