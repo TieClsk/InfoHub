@@ -64,14 +64,18 @@ export function NewsCard({
   const [detailOpen, setDetailOpen] = useState(false);
   const url = getSourceUrl(metadata, sourceUrl);
 
-  // 解析来源数量
+  // 解析来源数量 + GitHub 今日星数
   let sourceCount = 0;
   let sourceNames: string[] = [];
+  let todayStars = 0;
   if (metadata) {
     try {
-      const meta = JSON.parse(metadata) as { sourceCount?: number; sourceNames?: string[] };
+      const meta = JSON.parse(metadata) as {
+        sourceCount?: number; sourceNames?: string[]; sourceRank?: number;
+      };
       sourceCount = meta.sourceCount ?? 0;
       sourceNames = meta.sourceNames ?? [];
+      todayStars = meta.sourceRank ?? 0;
     } catch { /* ignore */ }
   }
   const date = new Date(publishedAt).toLocaleDateString('zh-CN', {
@@ -101,10 +105,19 @@ export function NewsCard({
                 <span>{sourceName}</span>
               )}
             </div>
-            <div className="flex items-center gap-0.5 shrink-0" title={`AI 评分 ${importance}/10`}>
-              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-              <span className="text-amber-500 font-medium ml-0.5">{importance}</span>
-              <span className="text-[10px]">/10</span>
+            <div className="flex items-center gap-2 shrink-0">
+              {category === 'github' && todayStars > 0 && (
+                <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground" title="今日 Star 数">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  <span className="font-medium">{todayStars}</span>
+                  <span>今日</span>
+                </span>
+              )}
+              <span className="flex items-center gap-0.5" title={`AI 评分 ${importance}/10`}>
+                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                <span className="text-amber-500 font-medium">{importance}</span>
+                <span className="text-[10px]">/10</span>
+              </span>
             </div>
           </div>
           <CardTitle className="text-base leading-snug mt-1">
