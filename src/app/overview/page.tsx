@@ -111,8 +111,18 @@ export default function OverviewPage() {
               <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
                 <span>{m.icon}</span> {m.label}
               </h2>
-              <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
-                <ReactMarkdown>{m.content || '生成中...'}</ReactMarkdown>
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <ReactMarkdown
+                  components={{
+                    h3: ({ children }) => <h3 className="text-sm font-semibold mt-3 mb-1.5 text-foreground">{children}</h3>,
+                    strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                    ul: ({ children }) => <ul className="list-disc pl-4 space-y-0.5 my-1">{children}</ul>,
+                    li: ({ children }) => <li className="text-sm text-muted-foreground">{children}</li>,
+                    p: ({ children }) => <p className="text-sm text-muted-foreground leading-relaxed my-1.5">{children}</p>,
+                  }}
+                >
+                  {m.content || '生成中...'}
+                </ReactMarkdown>
               </div>
             </section>
           ))
