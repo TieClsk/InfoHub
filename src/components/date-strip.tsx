@@ -33,7 +33,11 @@ export function DateStrip({ selected, onChange }: DateStripProps) {
     <div className="flex items-center gap-1 overflow-x-auto py-2">
       {dates.map((d) => {
         const hasNews = availableDates.has(d);
-        const isToday = d === new Date().toISOString().slice(0, 10);
+        const today = new Date().toISOString().slice(0, 10);
+        const y = new Date(); y.setDate(y.getDate() - 1);
+        const yesterday = y.toISOString().slice(0, 10);
+        const isToday = d === today;
+        const isYesterday = d === yesterday;
         const isSelected = d === selectedDate;
 
         return (
@@ -50,8 +54,8 @@ export function DateStrip({ selected, onChange }: DateStripProps) {
             }`}
           >
             <span className="text-[10px] opacity-70">{d.slice(5)}</span>
-            <span className={`text-[10px] ${isToday ? 'font-bold' : ''}`}>
-              {isToday ? '今天' : formatDay(d)}
+            <span className={`text-[10px] ${isToday || isYesterday ? 'font-bold' : ''}`}>
+              {isToday ? '今天' : isYesterday ? '昨天' : formatDay(d)}
             </span>
           </button>
         );
