@@ -83,7 +83,7 @@ export function NewsContent() {
             if (totalPages > 1) pages.push(totalPages);
 
             return (
-              <div className="flex justify-center items-center gap-0.5">
+              <div className="flex justify-center">
                 <div className="inline-flex items-center border rounded-lg bg-background">
                   {/* 上一页 */}
                   <button
@@ -118,25 +118,6 @@ export function NewsContent() {
                   >›</button>
                 </div>
 
-                {/* 跳转 */}
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const v = parseInt((e.currentTarget as HTMLFormElement).jump.value, 10);
-                    if (v >= 1 && v <= totalPages) router.push(`/news?category=${category}&page=${v}`);
-                  }}
-                  className="flex items-center ml-2"
-                >
-                  <span className="text-xs text-muted-foreground mr-1">跳至</span>
-                  <input
-                    name="jump"
-                    type="number"
-                    min={1}
-                    max={totalPages}
-                    placeholder={String(page)}
-                    className="w-10 h-8 text-center text-xs border rounded-md bg-background outline-none focus:border-ring"
-                  />
-                </form>
               </div>
             );
           })()}
