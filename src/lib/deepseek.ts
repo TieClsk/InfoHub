@@ -41,15 +41,20 @@ async function chatCompletion(messages: ChatMessage[], retries = 3): Promise<str
 
 function titlesShareMostWords(titles: string[]): boolean {
   if (titles.length < 2) return false;
-  const wordSets = titles.map((t) => new Set(t.split('')));
-  // 检查每对标题之间的字符重叠率
   for (let i = 0; i < titles.length; i++) {
     for (let j = i + 1; j < titles.length; j++) {
-      const a = wordSets[i]!;
-      const b = wordSets[j]!;
-      const intersection = [...a].filter((c) => b.has(c)).length;
-      const union = new Set([...a, ...b]).size;
-      if (intersection / union > 0.45) return true;
+      const a = titles[i]!;
+      const b = titles[j]!;
+      // 1. 公共子串 ≥4 个字符
+      for (let k = 0; k <= a.length - 4; k++) {
+        if (b.includes(a.slice(k, k + 4))) return true;
+      }
+      // 2. 字符重叠 >30%
+      const aSet = new Set(a.split(''));
+      const bSet = new Set(b.split(''));
+      const intersection = [...aSet].filter((c) => bSet.has(c)).length;
+      const union = new Set([...aSet, ...bSet]).size;
+      if (intersection / union > 0.3) return true;
     }
   }
   return false;
@@ -192,7 +197,11 @@ ${itemsText}
     };
 
     if (!result.sameEvent) {
-      if (!titlesShareMostWords(group.map((g) => g.title))) return null;
+      const sim = titlesShareMostWords(group.map((g) => g.title));
+      if (!sim) return null;
+      console.log(`  [verifyAndMerge] FORCE-MERGE (AI rejected but code found overlap): ${group.length} items from [${[...new Set(group.map(g=>g.sourceName))].join(',')}]`);
+    } else {
+      console.log(`  [verifyAndMerge] AI CONFIRMED merge: ${group.length} items from [${[...new Set(group.map(g=>g.sourceName))].join(',')}]`);
     }
 
     // 生成合并结果（优先用 AI 的，否则用最长标题作为主标题）

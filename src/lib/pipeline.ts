@@ -2,6 +2,45 @@ import { prisma } from '@/lib/db';
 import { clusterByTitle, verifyAndMerge, scoreSingle, translateToChinese, filterIrrelevant } from '@/lib/deepseek';
 import type { MergedResult } from '@/lib/deepseek';
 
+function shareSubstring(a: string, b: string, minLen = 5): boolean {
+  for (let i = 0; i <= a.length - minLen; i++) {
+    if (b.includes(a.slice(i, i + minLen))) return true;
+  }
+  return false;
+}
+
+function pairsToGroups(pairs: Array<[string, string]>): string[][] {
+  const groups: string[][] = [];
+  const idToGroup = new Map<string, number>();
+
+  for (const [a, b] of pairs) {
+    const ga = idToGroup.get(a);
+    const gb = idToGroup.get(b);
+
+    if (ga !== undefined && gb !== undefined) {
+      // 合并两个组
+      if (ga !== gb) {
+        groups[ga]!.push(...groups[gb]!);
+        for (const id of groups[gb]!) idToGroup.set(id, ga);
+        groups[gb] = [];
+      }
+    } else if (ga !== undefined) {
+      groups[ga]!.push(b);
+      idToGroup.set(b, ga);
+    } else if (gb !== undefined) {
+      groups[gb]!.push(a);
+      idToGroup.set(a, gb);
+    } else {
+      const idx = groups.length;
+      groups.push([a, b]);
+      idToGroup.set(a, idx);
+      idToGroup.set(b, idx);
+    }
+  }
+
+  return groups.filter((g) => g.length >= 2);
+}
+
 function mergeOverlappingGroups(groups: string[][]): string[][] {
   const result: string[][] = [];
   const used = new Set<number>();
@@ -70,26 +109,55 @@ export async function processCategory(
   const unprocessed = allRaw.filter((r) => !processedIds.has(r.id));
   if (unprocessed.length === 0) return { processed: 0, skipped: processedIds.size, errors: [] };
 
-  // 2. Pass 1: AI 标题聚类 — 分批处理（每批 20 条，提高 AI 准确率）
+  // 2. Pass 1: 标题聚类
+  // 第一步：代码层快速匹配（公共子串 ≥5 字 = 疑似同事件）
   const titleItems = unprocessed.map((r) => ({
     id: r.id,
     title: r.title,
     sourceName: sourceNameMap[r.sourceId] ?? r.sourceId,
   }));
 
-  // 分批调用，收集所有疑似组
-  const allGroups: string[][] = [];
+  // 按来源分组
+  const bySource = new Map<string, typeof titleItems>();
+  for (const ti of titleItems) {
+    const arr = bySource.get(ti.sourceName) || [];
+    arr.push(ti);
+    bySource.set(ti.sourceName, arr);
+  }
+
+  // 找出跨源匹配对（不同来源、共享 ≥5 字公共子串）
+  const crossPairs: Array<[string, string]> = [];
+  const srcNames = [...bySource.keys()];
+  for (let i = 0; i < srcNames.length; i++) {
+    for (let j = i + 1; j < srcNames.length; j++) {
+      const itemsA = bySource.get(srcNames[i]!)!;
+      const itemsB = bySource.get(srcNames[j]!)!;
+      for (const a of itemsA) {
+        for (const b of itemsB) {
+          if (shareSubstring(a.title, b.title, 5)) {
+            crossPairs.push([a.id, b.id]);
+          }
+        }
+      }
+    }
+  }
+
+  // 合并重叠对 → 聚类组
+  const codeGroups = pairsToGroups(crossPairs);
+  console.log(`  [cluster] code-level found ${crossPairs.length} cross-source pairs → ${codeGroups.length} groups`);
+
+  // 第二步：AI 标题聚类补充（同源去重）
+  const aiGroups: string[][] = [];
   const CLUSTER_BATCH = 20;
   for (let i = 0; i < titleItems.length; i += CLUSTER_BATCH) {
     const batch = titleItems.slice(i, i + CLUSTER_BATCH);
     const groups = await clusterByTitle(batch);
-    for (const g of groups) allGroups.push(g);
-    if (groups.length > 0) console.log(`  [cluster] batch ${Math.floor(i / CLUSTER_BATCH) + 1}: ${groups.length} groups found`);
+    for (const g of groups) aiGroups.push(g);
   }
 
-  // 跨批次合并：如果两个组共享 ID，合并它们
-  const mergedGroups = mergeOverlappingGroups(allGroups);
-  const suspectedGroups = mergedGroups.length > 0 ? mergedGroups : allGroups;
+  // 合并代码组 + AI 组
+  const allGroups = mergeOverlappingGroups([...codeGroups, ...aiGroups]);
+  const suspectedGroups = allGroups;
 
   // 追踪哪些 ID 已被合并
   const mergedIdSet = new Set<string>();
