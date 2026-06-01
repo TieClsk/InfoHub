@@ -1,90 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { generateOverview } from '@/lib/deepseek';
+import { generateUnifiedOverview } from '@/lib/deepseek';
 import type { ApiResponse } from '@/types';
 
-const CATEGORIES: Record<string, string> = {
-  domestic: '热点新闻',
-  weibo: '微博舆论',
-  international: '国际热点',
-  ai: 'AI 动态',
-  github: 'GitHub 热榜',
-  investment: '投资资讯',
-};
+const MODULES = [
+  { key: 'domestic', label: '时事热点', icon: '🔥', where: { category: { in: ['domestic', 'international'] } } },
+  { key: 'domestic', label: '时政消息', icon: '🏛️', where: { sourceId: { in: ['renmin'] } } },
+  { key: 'ai', label: '科技领域', icon: '🤖', where: { category: 'ai' } },
+  { key: 'investment', label: '投资领域', icon: '📈', where: { category: 'investment' } },
+  { key: 'github', label: 'GitHub热榜', icon: '⭐', where: { category: 'github' } },
+  { key: 'weibo', label: '舆论消息', icon: '💬', where: { category: 'weibo' } },
+];
 
-interface OverviewResult {
-  label: string;
-  overview: string;
-  questions: string[];
-  items: Array<{ title: string; summary: string }>;
-}
+interface ModuleResult { label: string; icon: string; content: string }
 
-// 内存缓存（随每日数据刷新而更新，不自动过期）
-let cache: { data: Record<string, OverviewResult>; ts: number } | null = null;
+let cache: { modules: ModuleResult[]; questions: string[]; ts: number } | null = null;
 
-async function generateAll(): Promise<Record<string, OverviewResult>> {
-  const results: Record<string, OverviewResult> = {};
-
-  for (const [key, label] of Object.entries(CATEGORIES)) {
+async function generateAll() {
+  const categories = [];
+  for (const m of MODULES) {
     const items = await prisma.processedContent.findMany({
-      where: { category: key },
+      where: m.where,
       orderBy: { importance: 'desc' },
       take: 10,
       select: { title: true, summary: true, sourceName: true, importance: true, publishedAt: true },
     });
-
-    const { overview, questions } = await generateOverview(
-      label,
-      items.map((i) => ({ ...i, publishedAt: i.publishedAt.toISOString() }))
-    );
-
-    results[key] = {
-      label,
-      overview,
-      questions,
-      items: items.map((i) => ({ title: i.title, summary: i.summary })),
-    };
+    categories.push({ label: m.label, icon: m.icon, items: items.map((i) => ({ ...i, publishedAt: i.publishedAt.toISOString() })) });
   }
 
-  cache = { data: results, ts: Date.now() };
-  return results;
+  const result = await generateUnifiedOverview(categories);
+  cache = { ...result, ts: Date.now() };
+  return result;
 }
 
 export async function GET() {
-  // 优先返回缓存（由每日 cron 数据刷新时更新）
   if (cache) {
-    const response: ApiResponse<Record<string, OverviewResult>> = { success: true, data: cache.data };
-    return NextResponse.json(response, { headers: { 'X-Cache': 'HIT' } });
+    return NextResponse.json({ success: true, data: cache } as ApiResponse<typeof cache>, { headers: { 'X-Cache': 'HIT' } });
   }
-
-  // 首次访问无缓存时实时生成
   try {
-    const results = await generateAll();
-    const response: ApiResponse<typeof results> = { success: true, data: results };
-    return NextResponse.json(response, { headers: { 'X-Cache': 'MISS' } });
+    const r = await generateAll();
+    return NextResponse.json({ success: true, data: r } as ApiResponse<typeof r>, { headers: { 'X-Cache': 'MISS' } });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' } },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' } }, { status: 500 });
   }
 }
 
-// 强制刷新（cron 调用）
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
   const cronSecret = process.env['CRON_SECRET'];
-  if (cronSecret && cronSecret.length >= 32 && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid CRON_SECRET' } }, { status: 401 });
+  if (cronSecret && cronSecret.length >= 32 && request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED' } }, { status: 401 });
   }
-
   try {
-    const results = await generateAll();
-    return NextResponse.json({ success: true, data: results });
+    const r = await generateAll();
+    return NextResponse.json({ success: true, data: r });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' } },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' } }, { status: 500 });
   }
 }

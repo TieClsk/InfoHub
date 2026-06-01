@@ -573,6 +573,50 @@ interface OverviewItem {
   publishedAt: string;
 }
 
+interface CategoryItems { label: string; icon: string; items: OverviewItem[]; }
+
+export async function generateUnifiedOverview(
+  categories: CategoryItems[]
+): Promise<{ modules: Array<{ label: string; icon: string; content: string }>; questions: string[] }> {
+  if (!API_KEY) return { modules: [], questions: [] };
+
+  const now = new Date().toLocaleDateString('zh-CN');
+  const sections = categories
+    .map((c) => {
+      const itemsText = c.items.slice(0, 10).map((i, idx) => `${idx + 1}. [${i.sourceName}] ${i.title} | ${i.summary}`).join('\n');
+      return `## ${c.icon} ${c.label}\n${itemsText}`;
+    }).join('\n\n');
+
+  try {
+    const content = await chatCompletion([
+      { role: 'system', content: `你是资深新闻分析师。今天是${now}。生成今日InfoHub速览。返回JSON。` },
+      { role: 'user', content: `今天是${now}。以下是各领域新闻Top10：
+
+${sections}
+
+生成6个模块（每个150-250字Markdown，连贯叙述不罗列，分析联系和趋势）：
+
+1. **时事热点** — 综合热点事件分析
+2. **时政消息** — 政策外交动态分析
+3. **科技领域** — AI/技术/开源趋势分析
+4. **投资领域** — 财经市场趋势判断
+5. **GitHub热榜** — 热门项目类型趋势
+6. **舆论消息** — 社交热议焦点
+
+返回JSON：{"modules":[{"label":"时事热点","icon":"🔥","content":"..."},...],"questions":["5个问题"]}` },
+    ]);
+
+    const raw = content.trim();
+    try {
+      const cm = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+      const json = JSON.parse(cm?.[1]?.trim() || raw.match(/\{[\s\S]*\}/)?.[0] || raw) as { modules?: Array<{ label: string; icon: string; content: string }>; questions?: string[] };
+      return { modules: json.modules || [], questions: Array.isArray(json.questions) ? json.questions.slice(0, 5) : [] };
+    } catch {
+      return { modules: [{ label: '速览', icon: '📋', content: raw.slice(0, 2000) }], questions: [] };
+    }
+  } catch { return { modules: [], questions: [] }; }
+}
+
 export async function generateOverview(
   categoryLabel: string,
   items: OverviewItem[]

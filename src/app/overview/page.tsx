@@ -7,21 +7,12 @@ import { Loader2, Send, MessageCircle, RefreshCw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 
-interface OverviewData {
-  label: string;
-  overview: string;
-  questions: string[];
-  items: Array<{ title: string; summary: string }>;
-}
+interface ModuleResult { label: string; icon: string; content: string }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
-const CAT_ICONS: Record<string, string> = {
-  domestic: '🔥', weibo: '💬', international: '🌍',
-  ai: '🤖', github: '⭐', investment: '📈',
-};
 
 export default function OverviewPage() {
-  const { data, isLoading, mutate } = useSWR<{ success: boolean; data: Record<string, OverviewData> }>(
+  const { data, isLoading, mutate } = useSWR<{ success: boolean; data: { modules: ModuleResult[]; questions: string[] } }>(
     '/api/ai/overview',
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 60000 }
@@ -44,9 +35,7 @@ export default function OverviewPage() {
   const chatListRef = useRef<HTMLDivElement>(null);
 
   // 收集所有推荐问题
-  const allQuestions = Object.values(data?.data || {}).flatMap((d) =>
-    (d.questions || []).map((q) => q)
-  ).filter(Boolean).slice(0, 8);
+  const allQuestions = (data?.data?.questions || []).slice(0, 8);
 
   const prevLen = useRef(0);
   useEffect(() => {
@@ -62,8 +51,8 @@ export default function OverviewPage() {
     setChat((c) => [...c, { role: 'user', content: q }]);
     setSending(true);
     try {
-      const context = Object.values(data?.data || {}).map(
-        (d) => `【${d.label}】\n${d.items.map((i) => `- ${i.title}: ${i.summary}`).join('\n')}`
+      const context = (data?.data?.modules || []).map(
+        (m) => `【${m.label}】\n${m.content}`
       ).join('\n\n');
 
       const res = await fetch('/api/ai/chat', {
@@ -117,26 +106,14 @@ export default function OverviewPage() {
             ))}
           </div>
         ) : data?.data ? (
-          Object.entries(data.data).map(([key, d]) => (
-            <section key={key} className="border rounded-xl p-5">
+          (data.data.modules || []).map((m) => (
+            <section key={m.label} className="border rounded-xl p-5">
               <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
-                <span>{CAT_ICONS[key] || '📌'}</span> {d.label}
+                <span>{m.icon}</span> {m.label}
               </h2>
               <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
-                <ReactMarkdown>{d.overview || '生成中...'}</ReactMarkdown>
+                <ReactMarkdown>{m.content || '生成中...'}</ReactMarkdown>
               </div>
-              {d.items.length > 0 && (
-                <details className="mt-3">
-                  <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
-                    查看 Top {d.items.length} 条来源
-                  </summary>
-                  <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                    {d.items.map((item, i) => (
-                      <li key={i}>• {item.title}</li>
-                    ))}
-                  </ul>
-                </details>
-              )}
             </section>
           ))
         ) : null}
