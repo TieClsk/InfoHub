@@ -9,17 +9,7 @@ import {
 
 const CATEGORIES = ['domestic', 'weibo', 'international', 'ai', 'github', 'investment'];
 
-function auth(request: NextRequest): boolean {
-  const secret = process.env['CRON_SECRET'];
-  if (!secret) return true;
-  return request.headers.get('authorization') === `Bearer ${secret}`;
-}
-
 export async function GET(request: NextRequest) {
-  if (!auth(request)) {
-    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED' } }, { status: 401 });
-  }
-
   const baseUrl = request.nextUrl.origin;
   const logs: string[] = [];
 
