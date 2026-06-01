@@ -24,7 +24,7 @@ export async function fetchBaiduHot(): Promise<FetcherResult<RawContentInput>> {
       const hotText = hotEl.first().text().trim();
       const link = $el.find('a').first().attr('href') || '';
 
-      if (!title || title.length < 2) return;
+      if (!title || title.length < 4 || /^\d+$/.test(title)) return;
       const hot = parseInt(hotText.replace(/\D/g, ''), 10);
       const sourceRank = Number.isNaN(hot) ? undefined : hot;
 
@@ -39,12 +39,12 @@ export async function fetchBaiduHot(): Promise<FetcherResult<RawContentInput>> {
       });
     });
 
-    // fallback: 获取所有含文本的链接
+    // fallback: 降级时使用更严格的过滤
     if (rawItems.length < 5) {
       $('a').each((i, el) => {
         const text = $(el).text().trim();
         const href = $(el).attr('href') || '';
-        if (text.length > 4 && text.length < 100 && href.includes('baidu.com')) {
+        if (text.length > 5 && text.length < 100 && href.includes('baidu.com')) {
           rawItems.push({
             sourceId: SOURCE_ID,
             externalId: `baidu-a-${i}`,
@@ -56,9 +56,18 @@ export async function fetchBaiduHot(): Promise<FetcherResult<RawContentInput>> {
       });
     }
 
-    const unique = rawItems.filter((item, idx, arr) =>
-      arr.findIndex((t) => t.title === item.title) === idx
-    );
+    // 严格过滤无效标题：纯数字、太短、纯符号
+    function isValidTitle(t: string): boolean {
+      if (t.length < 4) return false;
+      if (/^\d+$/.test(t)) return false; // 纯数字
+      if (/^[#＃\s]+$/.test(t)) return false; // 纯符号
+      if (/^[\d\s.,，。、]+$/.test(t)) return false; // 数字+标点
+      return true;
+    }
+
+    const unique = rawItems
+      .filter((item) => isValidTitle(item.title))
+      .filter((item, idx, arr) => arr.findIndex((t) => t.title === item.title) === idx);
 
     const result = await insertRawContents(unique.slice(0, 30), SOURCE_ID);
     const duration = Date.now() - startTime;

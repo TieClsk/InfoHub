@@ -2,6 +2,35 @@ import { prisma } from '@/lib/db';
 import { clusterByTitle, verifyAndMerge, scoreSingle, translateToChinese, filterIrrelevant } from '@/lib/deepseek';
 import type { MergedResult } from '@/lib/deepseek';
 
+function mergeOverlappingGroups(groups: string[][]): string[][] {
+  const result: string[][] = [];
+  const used = new Set<number>();
+
+  for (let i = 0; i < groups.length; i++) {
+    if (used.has(i)) continue;
+    const merged = new Set(groups[i]!);
+    used.add(i);
+
+    // 检查是否有其他组有重叠 ID
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let j = i + 1; j < groups.length; j++) {
+        if (used.has(j)) continue;
+        if (groups[j]!.some((id) => merged.has(id))) {
+          for (const id of groups[j]!) merged.add(id);
+          used.add(j);
+          changed = true;
+        }
+      }
+    }
+
+    result.push([...merged]);
+  }
+
+  return result;
+}
+
 async function getSourceNameMap(): Promise<Record<string, string>> {
   const sources = await prisma.dataSource.findMany({ select: { name: true, displayName: true } });
   const map: Record<string, string> = {};
@@ -41,13 +70,26 @@ export async function processCategory(
   const unprocessed = allRaw.filter((r) => !processedIds.has(r.id));
   if (unprocessed.length === 0) return { processed: 0, skipped: processedIds.size, errors: [] };
 
-  // 2. Pass 1: AI 标题聚类 — 找出疑似同主题组
+  // 2. Pass 1: AI 标题聚类 — 分批处理（每批 20 条，提高 AI 准确率）
   const titleItems = unprocessed.map((r) => ({
     id: r.id,
     title: r.title,
     sourceName: sourceNameMap[r.sourceId] ?? r.sourceId,
   }));
-  const suspectedGroups = await clusterByTitle(titleItems);
+
+  // 分批调用，收集所有疑似组
+  const allGroups: string[][] = [];
+  const CLUSTER_BATCH = 20;
+  for (let i = 0; i < titleItems.length; i += CLUSTER_BATCH) {
+    const batch = titleItems.slice(i, i + CLUSTER_BATCH);
+    const groups = await clusterByTitle(batch);
+    for (const g of groups) allGroups.push(g);
+    if (groups.length > 0) console.log(`  [cluster] batch ${Math.floor(i / CLUSTER_BATCH) + 1}: ${groups.length} groups found`);
+  }
+
+  // 跨批次合并：如果两个组共享 ID，合并它们
+  const mergedGroups = mergeOverlappingGroups(allGroups);
+  const suspectedGroups = mergedGroups.length > 0 ? mergedGroups : allGroups;
 
   // 追踪哪些 ID 已被合并
   const mergedIdSet = new Set<string>();

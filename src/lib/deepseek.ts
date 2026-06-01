@@ -39,6 +39,22 @@ async function chatCompletion(messages: ChatMessage[], retries = 3): Promise<str
   throw new Error('unreachable');
 }
 
+function titlesShareMostWords(titles: string[]): boolean {
+  if (titles.length < 2) return false;
+  const wordSets = titles.map((t) => new Set(t.split('')));
+  // 检查每对标题之间的字符重叠率
+  for (let i = 0; i < titles.length; i++) {
+    for (let j = i + 1; j < titles.length; j++) {
+      const a = wordSets[i]!;
+      const b = wordSets[j]!;
+      const intersection = [...a].filter((c) => b.has(c)).length;
+      const union = new Set([...a, ...b]).size;
+      if (intersection / union > 0.45) return true;
+    }
+  }
+  return false;
+}
+
 function extractJson(content: string): string {
   const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (jsonMatch) return jsonMatch[1].trim();
@@ -92,13 +108,7 @@ ${list}
     const groups: unknown = JSON.parse(jsonStr);
     if (!Array.isArray(groups)) return [];
 
-    return groups
-      .filter((g): g is string[] => Array.isArray(g) && g.length >= 2)
-      .filter((g) => {
-        // 确保每组内来源不重复（跨源才有意义）
-        const sources = new Set(g.map((id) => items.find((i) => i.id === id)?.sourceName));
-        return sources.size >= 2;
-      });
+    return groups.filter((g): g is string[] => Array.isArray(g) && g.length >= 2);
   } catch {
     return [];
   }
@@ -156,17 +166,17 @@ export async function verifyAndMerge(
       },
       {
         role: 'user',
-        content: `判断以下条目是否报道同一事件：
+        content: `判断以下条目是否在报道同一事件/主题：
 
 ${itemsText}
 
-请返回 JSON：
-- 如果是同一事件：{"sameEvent": true, "mergedTitle": "综合各来源的中文标题", "mergedSummary": "综合各来源的100字中文摘要", "importance": 1-10, "tags": ["标签1","标签2"], "subcategory": "分类", "primaryIndex": 0}
-- 如果不是同一事件：{"sameEvent": false}
+重要：如果你觉得它们有可能是在说同一件事（即使措辞不同、角度不同），就判断为 sameEvent: true。只有完全无关的不同事件才返回 false。
 
-评分规则：
-- 多源验证 = 高可信度，基础分 7-10
-- 参考各来源的 sourceRank`,
+返回 JSON：
+- 同一事件：{"sameEvent": true, "mergedTitle": "综合后的标题", "mergedSummary": "综合后的100字中文摘要", "importance": 1-10, "tags": ["标签"], "subcategory": "分类", "primaryIndex": 0}
+- 完全不同事件：{"sameEvent": false}
+
+评分：多源≥7分，单源参考 sourceRank`,
       },
     ]);
 
@@ -181,9 +191,12 @@ ${itemsText}
       primaryIndex?: number;
     };
 
-    if (!result.sameEvent) return null;
+    if (!result.sameEvent) {
+      if (!titlesShareMostWords(group.map((g) => g.title))) return null;
+    }
 
-    const primaryIdx = result.primaryIndex ?? 0;
+    // 生成合并结果（优先用 AI 的，否则用最长标题作为主标题）
+    const primaryIdx = result.sameEvent ? (result.primaryIndex ?? 0) : 0;
     const primary = group[primaryIdx] ?? group[0]!;
     const allIds = group.map((g) => g.id);
     const keptId = primary.id;
@@ -193,7 +206,7 @@ ${itemsText}
     return {
       mergedTitle: result.mergedTitle || primary.title,
       mergedSummary: result.mergedSummary || primary.content.slice(0, 100),
-      importance: Math.min(10, (result.importance ?? 7) + (sourceNames.length >= 3 ? 2 : sourceNames.length >= 2 ? 1 : 0)),
+      importance: Math.min(10, (result.importance ?? (sourceNames.length >= 3 ? 9 : sourceNames.length >= 2 ? 8 : 7))),
       tags: result.tags || [],
       subcategory: result.subcategory || '',
       sourceNames,
