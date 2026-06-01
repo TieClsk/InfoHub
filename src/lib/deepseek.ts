@@ -605,7 +605,20 @@ ${itemsText}
       },
     ]);
 
-    const json = JSON.parse(extractJson(content)) as { overview?: string; questions?: string[] };
+    const raw = content.trim();
+    let json: { overview?: string; questions?: string[] };
+
+    try {
+      // 优先解析代码块中的 JSON
+      const codeMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+      const jsonStr = codeMatch?.[1]?.trim() || raw.match(/\{[\s\S]*\}/)?.[0] || raw;
+      json = JSON.parse(jsonStr) as { overview?: string; questions?: string[] };
+    } catch {
+      // 解析失败：把原始文本当作 overview
+      console.error(`[generateOverview] JSON parse failed for ${categoryLabel}, raw:`, raw.slice(0, 200));
+      return { overview: raw.slice(0, 500).trim() || '生成失败。', questions: [] };
+    }
+
     return {
       overview: json.overview || '生成失败。',
       questions: Array.isArray(json.questions) ? json.questions.slice(0, 3) : [],

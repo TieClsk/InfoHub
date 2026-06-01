@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import useSWR from 'swr';
 import ReactMarkdown from 'react-markdown';
-import { Loader2, Send, MessageCircle } from 'lucide-react';
+import { Loader2, Send, MessageCircle, RefreshCw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 
@@ -21,11 +21,21 @@ const CAT_ICONS: Record<string, string> = {
 };
 
 export default function OverviewPage() {
-  const { data, isLoading } = useSWR<{ success: boolean; data: Record<string, OverviewData> }>(
+  const { data, isLoading, mutate } = useSWR<{ success: boolean; data: Record<string, OverviewData> }>(
     '/api/ai/overview',
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 60000 }
   );
+
+  const [regenerating, setRegenerating] = useState(false);
+  const handleRegenerate = async () => {
+    setRegenerating(true);
+    try {
+      await fetch('/api/ai/overview', { method: 'POST' });
+      await mutate();
+    } catch { /* ignore */ }
+    setRegenerating(false);
+  };
 
   // 右侧问答
   const [chat, setChat] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
@@ -71,10 +81,24 @@ export default function OverviewPage() {
     <div className="flex gap-6">
       {/* 左侧速览 */}
       <div className="flex-1 min-w-0 space-y-6">
-        <h1 className="text-2xl font-bold tracking-tight">今日速览</h1>
-        <p className="text-sm text-muted-foreground -mt-4">
-          AI 综合各领域 Top 10 新闻自动生成，每 30 分钟刷新
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">今日速览</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              AI 综合各领域 Top 10 新闻自动生成，每日数据刷新后更新
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={regenerating}
+            onClick={handleRegenerate}
+            className="shrink-0"
+          >
+            <RefreshCw className={`h-4 w-4 mr-1.5 ${regenerating ? 'animate-spin' : ''}`} />
+            {regenerating ? '生成中...' : '重新生成'}
+          </Button>
+        </div>
 
         {isLoading ? (
           <div className="space-y-4">
