@@ -77,7 +77,12 @@ export default function GuestbookPage() {
           <p className="text-sm text-muted-foreground">反馈问题、提出建议，公开可见</p>
         </div>
         {isAdmin ? (
-          <span className="text-xs text-green-600 font-medium">管理员模式</span>
+          <button
+            onClick={async () => { await fetch('/api/auth/logout', { method: 'POST' }); setIsAdmin(false); }}
+            className="text-xs text-muted-foreground hover:text-red-500 transition-colors"
+          >
+            退出登录
+          </button>
         ) : (
           <Link href="/login" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
             <LogIn className="h-3 w-3" /> 登录
