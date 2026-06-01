@@ -1,7 +1,12 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// InfoHub Prisma Schema
+//
+// 架构说明：
+// - 除 RawContent 外的所有表属于 Main DB（长期保留）
+// - RawContent 属于 Raw DB（14 天自动清理），通过 RAW_DATABASE_URL 连接
+// - ProcessedContent 冗余 sourceId + sourceName，原始数据清理后仍可独立展示
+// - 跨库表之间无 Prisma 级联关系，应用层保证一致性
+//
+// 部署时可将 RawContent 迁移到独立 DB，当前开发阶段可共用同一 PostgreSQL
 
 generator client {
   provider = "prisma-client"
@@ -10,4 +15,123 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ═══════════════════════════════════════════════════════════
+// Main DB 表（长期保留）
+// ═══════════════════════════════════════════════════════════
+
+// 数据源配置 — 新增数据源只需加记录
+model DataSource {
+  id          String   @id @default(cuid())
+  name        String   @unique        // 如 "weibo", "newsapi", "jiqizhixin"
+  displayName String                  // 如 "微博热搜", "NewsAPI"
+  category    String                  // domestic / international / ai / github / investment
+  type        String                  // rss / rest_api / scraper
+  config      Json                    // { url, apiKey, headers, selector... } 各源不同的配置
+  schedule    String?                 // cron 表达式，如 "0 8,12,18 * * *"
+  isActive    Boolean  @default(true)
+  lastFetchAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  fetchLogs FetchLog[]
+
+  @@index([category])
+}
+
+// AI 处理后的精选内容 — 前端展示用
+model ProcessedContent {
+  id            String   @id @default(cuid())
+  rawContentId  String?  @unique      // 关联原始数据，14 天后原始清理则置空
+  sourceId      String                // 冗余来源引用，确保原始数据清理后仍可追溯
+  sourceName    String                // 冗余来源显示名，如"微博热搜"，前端直接展示
+  category      String                // domestic / international / ai / github / investment
+  subcategory   String?               // 二级分类，如 ai→大模型/芯片/应用
+  title         String                 // AI 整理后的标题（中文）
+  summary       String                // AI 生成的摘要（100字内）
+  importance    Int      @default(5)  // AI 评分 1-10
+  tags          String[] @default([]) // AI 打的标签
+  language      String   @default("zh")
+  metadata      Json?                 // 扩展字段（如投资类的行情数据、GitHub 的 star 数等）
+  processedAt   DateTime @default(now())
+  publishedAt   DateTime              // 原始发布时间
+  createdAt     DateTime @default(now())
+
+  @@index([sourceId])
+  @@index([category, publishedAt])
+  @@index([category, importance])
+  @@index([publishedAt])
+}
+
+// GitHub 热榜（独立表，结构差异大）
+model GithubTrending {
+  id          String   @id @default(cuid())
+  repoName    String                  // owner/repo
+  description String?
+  language    String?
+  stars       Int      @default(0)
+  forks       Int      @default(0)
+  todayStars  Int      @default(0)
+  repoUrl     String
+  date        DateTime @db.Date       // 哪一天的榜单
+  createdAt   DateTime @default(now())
+
+  @@unique([repoName, date])
+  @@index([date])
+  @@index([language, date])
+}
+
+// 周报
+model WeeklySummary {
+  id         String   @id @default(cuid())
+  weekStart  DateTime @db.Date
+  weekEnd    DateTime @db.Date
+  content    String   @db.Text        // Markdown 格式
+  metadata   Json?                    // 扩展字段
+  generatedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@unique([weekStart])
+}
+
+// 采集日志
+model FetchLog {
+  id         String   @id @default(cuid())
+  sourceId   String
+  source     DataSource @relation(fields: [sourceId], references: [id])
+  status     String                   // success / partial / failed
+  total      Int      @default(0)     // 采集总条数
+  newCount   Int      @default(0)     // 新增条数（去重后）
+  duration   Int      @default(0)     // 耗时毫秒
+  message    String?  @db.Text        // 错误信息或备注
+  fetchedAt  DateTime @default(now())
+
+  @@index([sourceId, fetchedAt])
+  @@index([fetchedAt])
+}
+
+// ═══════════════════════════════════════════════════════════
+// Raw DB 表（14 天自动清理）
+// 部署时可将此模型拆分到独立 DB，通过 RAW_DATABASE_URL 连接
+// ═══════════════════════════════════════════════════════════
+
+// 原始采集数据 — 临时存储，14 天后清理
+model RawContent {
+  id           String   @id @default(cuid())
+  sourceId     String                // DataSource.id（跨库无 Prisma 关联约束）
+  externalId   String?               // 源端唯一 ID（用于去重）
+  externalUrl  String?               // 原文链接
+  title        String
+  content      String?  @db.Text     // 原始正文（可为空）
+  sourceRank   Int?                  // 源端原始排名/热度（微博热搜第几名、GitHub 多少 star 等），供 AI 评分参考
+  rawData      Json?                 // 源端返回的完整原始 JSON
+  language     String   @default("zh") // zh / en
+  fetchedAt    DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  @@unique([sourceId, externalUrl])  // 同一来源同一 URL 不重复
+  @@unique([sourceId, externalId])   // 同一来源同一 ID 不重复
+  @@index([sourceId, fetchedAt])
+  @@index([createdAt])               // 用于清理过期数据
 }

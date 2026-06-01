@@ -18,7 +18,11 @@
       "Bash(npx shadcn@latest init -d)",
       "Bash(rm -rf \"d:/Study/项目/infohub-temp\" && echo \"temp cleaned\")",
       "Bash(npx prisma *)",
-      "Bash(npx next *)"
+      "Bash(npx next *)",
+      "Bash(ls -la .env*)",
+      "Bash(git check-ignore *)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/prisma/package.json'\\).version\\)\")",
+      "Bash(node -e ' *)"
     ],
     "additionalDirectories": [
       "d:\\Study\\项目\\infohub-temp"
