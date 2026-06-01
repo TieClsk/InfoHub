@@ -54,12 +54,14 @@ export function NewsContent() {
           >
             <BarChart3 className="h-3.5 w-3.5 mr-1" />评分
           </Button>
-          <Button
-            variant={sortBy === 'multi' ? 'default' : 'ghost'} size="sm"
-            onClick={() => setSortBy('multi')} className="rounded-none border-x"
-          >
-            多源
-          </Button>
+          {category !== 'weibo' && (
+            <Button
+              variant={sortBy === 'multi' ? 'default' : 'ghost'} size="sm"
+              onClick={() => setSortBy('multi')} className="rounded-none border-x"
+            >
+              多源
+            </Button>
+          )}
           {category === 'weibo' && (
             <Button
               variant={sortBy === 'hot' ? 'default' : 'ghost'} size="sm"
@@ -73,7 +75,7 @@ export function NewsContent() {
 
       <Tabs
         value={category}
-        onValueChange={(v) => router.push(`/news?category=${v}`)}
+        onValueChange={(v) => { router.push(`/news?category=${v}`); setSortBy('rating'); }}
       >
         <TabsList>
           {CATEGORIES.map((c) => (
