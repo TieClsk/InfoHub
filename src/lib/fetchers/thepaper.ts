@@ -20,7 +20,15 @@ export async function fetchThepaper(): Promise<FetcherResult<RawContentInput>> {
 
   for (const url of URLS) {
     try {
-      const response = await fetchWithTimeout(url);
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml',
+          'Accept-Language': 'zh-CN,zh;q=0.9',
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const html = await response.text();
       const $ = cheerio.load(html);
 
