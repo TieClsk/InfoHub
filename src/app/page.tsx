@@ -1,65 +1,96 @@
-import Image from "next/image";
+import { NewsCard } from '@/components/news-card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export default function Home() {
+const CATEGORIES: { key: string; label: string; icon: string }[] = [
+  { key: 'domestic', label: '国内热点', icon: '🔥' },
+  { key: 'international', label: '国际热点', icon: '🌍' },
+  { key: 'ai', label: 'AI 动态', icon: '🤖' },
+  { key: 'github', label: 'GitHub 热榜', icon: '⭐' },
+  { key: 'investment', label: '投资资讯', icon: '📈' },
+];
+
+async function getTopNews() {
+  try {
+    const { prisma } = await import('@/lib/db');
+    const results: Record<string, Array<Record<string, unknown>>> = {};
+    for (const cat of CATEGORIES) {
+      results[cat.key] = (await prisma.processedContent.findMany({
+        where: { category: cat.key },
+        orderBy: { importance: 'desc' },
+        take: 3,
+        select: {
+          id: true,
+          title: true,
+          summary: true,
+          sourceName: true,
+          category: true,
+          importance: true,
+          tags: true,
+          publishedAt: true,
+        },
+      })) as unknown as Array<Record<string, unknown>>;
+    }
+    return results;
+  } catch {
+    return null;
+  }
+}
+
+export default async function HomePage() {
+  const news = await getTopNews();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="space-y-8">
+      <section>
+        <h1 className="text-2xl font-bold tracking-tight">信息聚合</h1>
+        <p className="text-muted-foreground mt-1">多源采集 · AI 精选 · 每日更新</p>
+      </section>
+
+      {CATEGORIES.map((cat) => (
+        <section key={cat.key}>
+          <h2 className="text-lg font-semibold mb-3">
+            {cat.icon} {cat.label}
+          </h2>
+          {news?.[cat.key] && (news[cat.key] as Array<Record<string, unknown>>).length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {(news[cat.key] as Array<Record<string, unknown>>).map((item) => (
+                <NewsCard
+                  key={item['id'] as string}
+                  title={item['title'] as string}
+                  summary={item['summary'] as string}
+                  sourceName={item['sourceName'] as string}
+                  category={item['category'] as string}
+                  importance={item['importance'] as number}
+                  tags={item['tags'] as string[]}
+                  publishedAt={item['publishedAt'] as string}
+                />
+              ))}
+            </div>
+          ) : (
+            <NewsCardSkeleton />
+          )}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function NewsCardSkeleton() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <Card key={i}>
+          <CardHeader className="pb-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-5 w-full mt-2" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-4 w-3/4 mt-2" />
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }

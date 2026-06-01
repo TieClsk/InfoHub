@@ -24,7 +24,8 @@
       "Bash(node -e \"console.log\\(require\\('./node_modules/prisma/package.json'\\).version\\)\")",
       "Bash(node -e ' *)",
       "Bash(npx tsc *)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(npx shadcn@latest add card badge tabs select skeleton separator navigation-menu menubar -y)"
     ],
     "additionalDirectories": [
       "d:\\Study\\项目\\infohub-temp"
