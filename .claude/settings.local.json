@@ -5,7 +5,23 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(git config *)",
-      "Bash(gh auth *)"
+      "Bash(gh auth *)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --src-dir --app --eslint --no-turbopack --import-alias \"@/*\")",
+      "Read(//d/Study/项目/**)",
+      "Bash(npx create-next-app@latest infohub-temp --typescript --tailwind --src-dir --app --eslint --no-turbopack --import-alias \"@/*\")",
+      "Bash(cp package.json package-lock.json tsconfig.json postcss.config.mjs eslint.config.mjs next-env.d.ts next.config.ts README.md \"d:/Study/项目/InfoHub/\")",
+      "Bash(cp -r src \"d:/Study/项目/InfoHub/\")",
+      "Bash(cp -r public \"d:/Study/项目/InfoHub/\")",
+      "Bash(cat .gitignore)",
+      "Bash(cp node_modules \"d:/Study/项目/InfoHub/\")",
+      "Bash(npm install *)",
+      "Bash(npx shadcn@latest init -d)",
+      "Bash(rm -rf \"d:/Study/项目/infohub-temp\" && echo \"temp cleaned\")",
+      "Bash(npx prisma *)",
+      "Bash(npx next *)"
+    ],
+    "additionalDirectories": [
+      "d:\\Study\\项目\\infohub-temp"
     ]
   }
 }
