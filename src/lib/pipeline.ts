@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db';
 import { processBatch, translateToChinese, filterIrrelevant } from '@/lib/deepseek';
 import type { AIProcessInput } from '@/types';
 
-const BATCH_SIZE = 10;
+const BATCH_SIZE = 25;
 
 async function getSourceNameMap(): Promise<Record<string, string>> {
   const sources = await prisma.dataSource.findMany({
@@ -13,43 +13,6 @@ async function getSourceNameMap(): Promise<Record<string, string>> {
     map[s.name] = s.displayName;
   }
   return map;
-}
-
-/**
- * 等比例取样：从该板块的各数据源中各取一部分，确保来源多样性
- */
-async function getDiverseSamples(
-  sourceIds: string[],
-  totalLimit: number
-) {
-  const perSource = Math.max(5, Math.ceil(totalLimit / sourceIds.length));
-
-  const allItems: Awaited<ReturnType<typeof prisma.rawContent.findMany>>[] = [];
-  for (const sid of sourceIds) {
-    const items = await prisma.rawContent.findMany({
-      where: { sourceId: sid },
-      orderBy: { fetchedAt: 'desc' },
-      take: perSource,
-    });
-    allItems.push(items);
-  }
-
-  // 交错排列（避免同一来源挤在一起）
-  const result: (typeof allItems)[number] = [];
-  let hasMore = true;
-  let idx = 0;
-  while (hasMore) {
-    hasMore = false;
-    for (const items of allItems) {
-      if (idx < items.length) {
-        result.push(items[idx]!);
-        hasMore = true;
-      }
-    }
-    idx++;
-  }
-
-  return result.slice(0, totalLimit);
 }
 
 export async function processCategory(
@@ -69,8 +32,31 @@ export async function processCategory(
     return { processed: 0, skipped: 0, errors: [`No sources for category: ${category}`] };
   }
 
-  // 等比例从各源取样
-  const rawItems = await getDiverseSamples(sourceIds, limit);
+  // 全量取，跨源混排：先分组再交错，确保每批都包含多个来源
+  const allBySource: Array<Awaited<ReturnType<typeof prisma.rawContent.findMany>>> = [];
+  for (const sid of sourceIds) {
+    const items = await prisma.rawContent.findMany({
+      where: { sourceId: sid },
+      orderBy: { fetchedAt: 'desc' },
+      take: Math.ceil(limit / sourceIds.length),
+    });
+    allBySource.push(items);
+  }
+
+  // 交错混排（来源A1, 来源B1, 来源C1, 来源A2, 来源B2, ...）
+  const rawItems: typeof allBySource[0] = [];
+  let idx = 0;
+  while (rawItems.length < limit) {
+    let added = false;
+    for (const srcItems of allBySource) {
+      if (idx < srcItems.length && rawItems.length < limit) {
+        rawItems.push(srcItems[idx]!);
+        added = true;
+      }
+    }
+    idx++;
+    if (!added) break;
+  }
 
   // 过滤已处理
   const rawIds = rawItems.map((r) => r.id);
@@ -151,10 +137,11 @@ export async function processCategory(
           mergedSourceNames.length
         );
 
-        // 多源加权：3源以上+3，2源+1
+        // 多源加权：代码层再强化一遍
         let importance = result.importance;
-        if (sourceCount >= 3) importance = Math.min(10, importance + 3);
-        else if (sourceCount >= 2) importance = Math.min(10, importance + 1);
+        if (sourceCount >= 4) importance = Math.max(importance, 9);
+        else if (sourceCount >= 3) importance = Math.max(importance, 8);
+        else if (sourceCount >= 2) importance = Math.max(importance, 7);
 
         let title = result.title;
         let summary = result.summary;
