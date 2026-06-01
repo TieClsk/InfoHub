@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
+    const sort = searchParams.get('sort') || 'rating';
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)));
     const skip = (page - 1) * limit;
@@ -13,33 +14,36 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
     if (category) where['category'] = category;
 
-    const [data, total] = await Promise.all([
-      prisma.processedContent.findMany({
-        where,
-        orderBy: [{ importance: 'desc' }, { publishedAt: 'desc' }],
-        skip,
-        take: limit,
-        select: {
-          id: true,
-          sourceName: true,
-          category: true,
-          subcategory: true,
-          title: true,
-          summary: true,
-          importance: true,
-          tags: true,
-          language: true,
-          publishedAt: true,
-          createdAt: true,
-          metadata: true,
-        },
-      }),
-      prisma.processedContent.count({ where }),
-    ]);
+    // 多源模式：取更多数据供前端排序
+    const fetchLimit = sort === 'multi' ? 200 : limit;
 
-    const response: ApiResponse<typeof data> = {
+    const rows = await prisma.processedContent.findMany({
+      where,
+      orderBy: [{ importance: 'desc' }, { publishedAt: 'desc' }],
+      take: fetchLimit,
+      select: {
+        id: true, sourceName: true, category: true, subcategory: true,
+        title: true, summary: true, importance: true, tags: true,
+        language: true, publishedAt: true, createdAt: true, metadata: true,
+      },
+    });
+
+    // 多源：按 sourceCount 降序 → importance 降序
+    if (sort === 'multi') {
+      rows.sort((a, b) => {
+        let scA = 1; try { scA = (JSON.parse(a.metadata || '{}') as { sourceCount?: number }).sourceCount || 1; } catch {}
+        let scB = 1; try { scB = (JSON.parse(b.metadata || '{}') as { sourceCount?: number }).sourceCount || 1; } catch {}
+        if (scB !== scA) return scB - scA;
+        return b.importance - a.importance;
+      });
+    }
+
+    const total = rows.length;
+    const paged = sort === 'multi' ? rows.slice(skip, skip + limit) : rows.slice(skip, skip + limit);
+
+    const response: ApiResponse<typeof paged> = {
       success: true,
-      data,
+      data: paged,
       meta: { page, limit, total },
     };
 
@@ -48,13 +52,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        },
-      },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' } },
       { status: 500 }
     );
   }

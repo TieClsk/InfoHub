@@ -27,8 +27,9 @@ export function NewsContent() {
   const page = parseInt(searchParams.get('page') ?? '1', 10);
   const [sortBy, setSortBy] = useState<'rating' | 'multi' | 'hot'>('rating');
 
+  const sortParam = sortBy === 'multi' ? 'multi' : '';
   const { data, isLoading } = useSWR<ApiResponse<Array<Record<string, unknown>>>>(
-    `/api/news?category=${category}&page=${page}&limit=20`,
+    `/api/news?category=${category}&page=${page}&limit=20${sortParam ? '&sort=multi' : ''}`,
     fetcher
   );
 
@@ -37,20 +38,8 @@ export function NewsContent() {
     if (!meta) return 0;
     try { return (JSON.parse(meta) as { sourceRank?: number }).sourceRank || 0; } catch { return 0; }
   };
-  const getSourceCount = (meta: string | null) => {
-    if (!meta) return 1;
-    try { return (JSON.parse(meta) as { sourceCount?: number }).sourceCount || 1; } catch { return 1; }
-  };
 
-  if (sortBy === 'multi') {
-    // 多源优先：先按 sourceCount 降序，再按 importance 降序
-    items.sort((a, b) => {
-      const scA = getSourceCount((a['metadata'] as string) || null);
-      const scB = getSourceCount((b['metadata'] as string) || null);
-      if (scB !== scA) return scB - scA;
-      return (b['importance'] as number) - (a['importance'] as number);
-    });
-  } else if (category === 'weibo' && sortBy === 'hot') {
+  if (category === 'weibo' && sortBy === 'hot') {
     items.sort((a, b) => getHotRank((b['metadata'] as string) || null) - getHotRank((a['metadata'] as string) || null));
   }
 
