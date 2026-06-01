@@ -562,6 +562,54 @@ export async function generateSuggestedQuestions(title: string, summary: string)
   }
 }
 
+/**
+ * 速览 — 按类别总结今日要闻
+ */
+interface OverviewItem {
+  title: string;
+  summary: string;
+  sourceName: string;
+  importance: number;
+  publishedAt: string;
+}
+
+export async function generateOverview(
+  categoryLabel: string,
+  items: OverviewItem[]
+): Promise<string> {
+  if (!API_KEY || items.length === 0) return '暂无数据。';
+
+  const itemsText = items
+    .map((i, idx) => `${idx + 1}. [${i.sourceName}] ${i.title}\n   摘要：${i.summary}\n   时间：${i.publishedAt}`)
+    .join('\n');
+
+  const now = new Date().toLocaleDateString('zh-CN');
+
+  try {
+    const content = await chatCompletion([
+      {
+        role: 'system',
+        content: `你是专业新闻编辑。今天是${now}。请根据提供的新闻生成今日${categoryLabel}领域速览。只返回正文，不要标题。`,
+      },
+      {
+        role: 'user',
+        content: `今天是${now}。以下是今天${categoryLabel}领域评分最高的新闻：
+
+${itemsText}
+
+请生成200-300字的今日${categoryLabel}速览：
+1. 总结今天这个领域主要发生了什么（2-3个要点）
+2. 有什么值得关注的事件或趋势
+3. 注意时间线——只关注今天的事件，如果某条新闻明显是旧闻（时间超过24小时），忽略它
+4. 语言简洁专业，中文输出`,
+      },
+    ]);
+    return content.trim();
+  } catch {
+    return '生成失败，请稍后重试。';
+  }
+}
+
 export async function chatAboutContent(
   title: string,
   summary: string,

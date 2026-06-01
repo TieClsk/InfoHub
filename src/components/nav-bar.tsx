@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 
 const NAV_ITEMS = [
   { href: '/', label: '首页' },
+  { href: '/overview', label: '速览' },
   { href: '/news', label: '新闻' },
   { href: '/github', label: 'GitHub' },
   { href: '/weekly', label: '周报' },
