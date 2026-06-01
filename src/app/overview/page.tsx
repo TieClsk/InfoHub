@@ -168,7 +168,13 @@ export default function OverviewPage() {
             {chat.map((m, i) => (
               <div key={i} className={`text-xs ${m.role === 'user' ? 'bg-muted rounded-lg px-2 py-1.5' : 'border rounded-lg px-2 py-1.5'}`}>
                 <span className="text-[10px] text-muted-foreground">{m.role === 'user' ? '你' : 'AI'}</span>
-                <p className="mt-0.5 leading-relaxed whitespace-pre-line">{m.content}</p>
+                {m.role === 'assistant' ? (
+                  <div className="mt-0.5 prose prose-xs dark:prose-invert max-w-none leading-relaxed">
+                    <ReactMarkdown>{m.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="mt-0.5 leading-relaxed whitespace-pre-line">{m.content}</p>
+                )}
               </div>
             ))}
             {sending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
