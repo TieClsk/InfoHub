@@ -9,6 +9,7 @@ import type { ApiResponse } from '@/types';
 
 const CATEGORIES = [
   { key: 'domestic', label: '国内' },
+  { key: 'weibo', label: '微博' },
   { key: 'international', label: '国际' },
   { key: 'ai', label: 'AI' },
   { key: 'investment', label: '投资' },

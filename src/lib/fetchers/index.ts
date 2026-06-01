@@ -11,3 +11,6 @@ export { fetchNhkNews } from './nhk';
 export { fetchClsNews } from './cls';
 export { fetchEastmoneyNews } from './eastmoney';
 export { fetchWeiboHot } from './weibo-hot';
+export { fetchSinaNews } from './sina-news';
+export { fetch36kr } from './36kr';
+export { fetchInfoq } from './infoq';
