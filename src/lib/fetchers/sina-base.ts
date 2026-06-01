@@ -12,7 +12,7 @@ export async function fetchSinaSource(config: SinaSource): Promise<FetcherResult
   const { sourceId, lid } = config;
 
   try {
-    const url = `https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=${lid}&k=&num=30&page=1`;
+    const url = `https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=${lid}&k=&num=80&page=1`;
     const response = await fetchWithTimeout(url, 8000);
     const json = (await response.json()) as {
       result: { data: Array<{ title: string; url: string; intro: string; ctime: string }> };

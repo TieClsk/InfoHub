@@ -1,6 +1,5 @@
 export { fetchGithubTrending } from './github-trending';
 export { fetchRssSource } from './rss-base';
-export { fetchRestApiSource } from './rest-api-base';
 export { fetchHackerNews } from './hackernews';
 export { fetchRenminNews } from './renmin';
 export { fetchNhkNews } from './nhk';
@@ -14,3 +13,7 @@ export { fetchSinaSocial } from './sina-social';
 export { fetchSinaFinance } from './sina-finance';
 export { fetchSinaMil } from './sina-mil';
 export { fetchBaiduHot } from './baidu-hot';
+export { fetchThepaper } from './thepaper';
+export { fetchHuanqiu } from './huanqiu';
+export { fetchToutiao } from './toutiao';
+export { fetchNetease } from './netease';
