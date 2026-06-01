@@ -1,6 +1,9 @@
-// InfoHub Prisma Schema — Vercel 部署用 PostgreSQL
+// InfoHub Prisma Schema — 开发环境 SQLite，部署可切 PostgreSQL
 //
-// key 字段保持 String 类型以兼容现有代码（tags/metadata/rawData 在应用层做 JSON 序列化）
+// 架构说明：
+// - ProcessedContent 冗余 sourceId + sourceName，原始数据清理后仍可独立展示
+// - 跨库表之间无 Prisma 级联关系，应用层保证一致性
+// - tags 字段以 JSON 字符串存储（SQLite 兼容），格式：["tag1","tag2"]
 
 generator client {
   provider = "prisma-client"
@@ -12,7 +15,7 @@ datasource db {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 长期保留
+// Main 表（长期保留）
 // ═══════════════════════════════════════════════════════════
 
 model DataSource {
@@ -20,13 +23,14 @@ model DataSource {
   name        String   @unique
   displayName String
   category    String
-  type        String
-  config      String   @db.Text // JSON 字符串
+  type        String   // rss / rest_api / scraper
+  config      String   // JSON 字符串（SQLite 不支持 Json 类型）
   schedule    String?
   isActive    Boolean  @default(true)
   lastFetchAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
 
   @@index([category])
 }
@@ -41,9 +45,9 @@ model ProcessedContent {
   title         String
   summary       String
   importance    Float    @default(5)
-  tags          String   @default("[]")
+  tags          String   @default("[]") // JSON 字符串数组
   language      String   @default("zh")
-  metadata      String?  @db.Text
+  metadata      String?                 // JSON 字符串
   processedAt   DateTime @default(now())
   publishedAt   DateTime
   createdAt     DateTime @default(now())
@@ -63,7 +67,7 @@ model GithubTrending {
   forks       Int      @default(0)
   todayStars  Int      @default(0)
   repoUrl     String
-  date        DateTime @db.Date
+  date        DateTime
   createdAt   DateTime @default(now())
 
   @@unique([repoName, date])
@@ -73,10 +77,10 @@ model GithubTrending {
 
 model WeeklySummary {
   id         String   @id @default(cuid())
-  weekStart  DateTime @db.Date
-  weekEnd    DateTime @db.Date
-  content    String   @db.Text
-  metadata   String?  @db.Text
+  weekStart  DateTime
+  weekEnd    DateTime
+  content    String
+  metadata   String?  // JSON 字符串
   generatedAt DateTime @default(now())
   createdAt  DateTime @default(now())
 
@@ -85,12 +89,12 @@ model WeeklySummary {
 
 model FetchLog {
   id        String   @id @default(cuid())
-  sourceId  String
+  sourceId  String   // DataSource.name（跨库无 FK 约束）
   status    String
   total     Int      @default(0)
   newCount  Int      @default(0)
   duration  Int      @default(0)
-  message   String?  @db.Text
+  message   String?
   fetchedAt DateTime @default(now())
 
   @@index([sourceId, fetchedAt])
@@ -98,7 +102,7 @@ model FetchLog {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 原始数据（14 天自动清理）
+// 原始数据表（14 天自动清理）
 // ═══════════════════════════════════════════════════════════
 
 model RawContent {
@@ -107,9 +111,9 @@ model RawContent {
   externalId  String?
   externalUrl String?
   title       String
-  content     String?  @db.Text
+  content     String?
   sourceRank  Int?
-  rawData     String?  @db.Text
+  rawData     String?  // JSON 字符串
   language    String   @default("zh")
   fetchedAt   DateTime @default(now())
   createdAt   DateTime @default(now())
