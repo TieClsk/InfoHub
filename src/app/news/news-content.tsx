@@ -83,48 +83,59 @@ export function NewsContent() {
             if (totalPages > 1) pages.push(totalPages);
 
             return (
-              <div className="flex justify-center items-center gap-1 flex-wrap">
-                <button
-                  disabled={page <= 1}
-                  onClick={() => router.push(`/news?category=${category}&page=${page - 1}`)}
-                  className="px-2 py-1 rounded border text-sm disabled:opacity-50"
-                >‹</button>
-                {pages.map((p, i) =>
-                  typeof p === 'string' ? (
-                    <span key={`e${i}`} className="px-1 text-muted-foreground text-xs">…</span>
-                  ) : (
-                    <button
-                      key={p}
-                      disabled={p === page}
-                      onClick={() => router.push(`/news?category=${category}&page=${p}`)}
-                      className={`px-2.5 py-1 rounded text-sm ${p === page ? 'bg-primary text-primary-foreground' : 'border hover:bg-muted'}`}
-                    >{p}</button>
-                  )
-                )}
-                <button
-                  disabled={page >= totalPages}
-                  onClick={() => router.push(`/news?category=${category}&page=${page + 1}`)}
-                  className="px-2 py-1 rounded border text-sm disabled:opacity-50"
-                >›</button>
+              <div className="flex justify-center items-center gap-0.5">
+                <div className="inline-flex items-center border rounded-lg bg-background">
+                  {/* 上一页 */}
+                  <button
+                    disabled={page <= 1}
+                    onClick={() => router.push(`/news?category=${category}&page=${page - 1}`)}
+                    className="px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-l-lg transition-colors disabled:opacity-30"
+                  >‹</button>
+
+                  {/* 页码 */}
+                  {pages.map((p, i) =>
+                    typeof p === 'string' ? (
+                      <span key={`e${i}`} className="px-1 text-muted-foreground text-xs select-none">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        disabled={p === page}
+                        onClick={() => router.push(`/news?category=${category}&page=${p}`)}
+                        className={`min-w-[2rem] px-1.5 py-1.5 text-sm transition-colors ${
+                          p === page
+                            ? 'bg-primary text-primary-foreground font-medium'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                        }`}
+                      >{p}</button>
+                    )
+                  )}
+
+                  {/* 下一页 */}
+                  <button
+                    disabled={page >= totalPages}
+                    onClick={() => router.push(`/news?category=${category}&page=${page + 1}`)}
+                    className="px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-r-lg transition-colors disabled:opacity-30"
+                  >›</button>
+                </div>
+
+                {/* 跳转 */}
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    const input = (e.target as HTMLFormElement).querySelector('input');
-                    if (input) {
-                      const v = parseInt(input.value, 10);
-                      if (v >= 1 && v <= totalPages) router.push(`/news?category=${category}&page=${v}`);
-                    }
+                    const v = parseInt((e.currentTarget as HTMLFormElement).jump.value, 10);
+                    if (v >= 1 && v <= totalPages) router.push(`/news?category=${category}&page=${v}`);
                   }}
-                  className="flex items-center gap-1 ml-2"
+                  className="flex items-center ml-2"
                 >
+                  <span className="text-xs text-muted-foreground mr-1">跳至</span>
                   <input
+                    name="jump"
                     type="number"
                     min={1}
                     max={totalPages}
                     placeholder={String(page)}
-                    className="w-10 h-7 text-center text-xs border rounded"
+                    className="w-10 h-8 text-center text-xs border rounded-md bg-background outline-none focus:border-ring"
                   />
-                  <button type="submit" className="px-2 py-1 text-xs border rounded hover:bg-muted">跳转</button>
                 </form>
               </div>
             );
