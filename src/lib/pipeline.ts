@@ -70,6 +70,34 @@ function mergeOverlappingGroups(groups: string[][]): string[][] {
   return result;
 }
 
+function isChinese(text: string): boolean {
+  if (!text || text.length < 2) return false;
+  const chineseChars = text.match(/[一-鿿]/g);
+  if (!chineseChars) return false;
+  return chineseChars.length / text.length > 0.2;
+}
+
+function isValidSummary(summary: string, title: string): boolean {
+  if (!summary || summary.trim().length < 10) return false;
+  if (/https?:\/\//.test(summary)) return false;
+  if (summary.trim() === title.trim()) return false;
+  if (title.length > 10 && summary.includes(title.slice(0, 10))) return false;
+  if (!isChinese(summary)) return false;
+  if (summary.startsWith('文章网址') || summary.startsWith('文章URL') || summary.includes('评论URL')) return false;
+  return true;
+}
+
+// 获取有效的摘要或兜底
+function getValidSummary(aiSummary: string, title: string, rawContent: string | null): string {
+  if (isValidSummary(aiSummary, title)) return aiSummary;
+  // 用原始内容兜底
+  if (rawContent && rawContent.length > 20 && isChinese(rawContent) && !/https?:\/\//.test(rawContent)) {
+    return rawContent.slice(0, 100);
+  }
+  // 最终兜底：用标题
+  return title;
+}
+
 async function getSourceNameMap(): Promise<Record<string, string>> {
   const sources = await prisma.dataSource.findMany({ select: { name: true, displayName: true } });
   const map: Record<string, string> = {};
@@ -208,26 +236,22 @@ export async function processCategory(
     singleResults.push(...scores);
   }
 
-  // AI 过滤（仅 ai 板块）
-  if (category === 'ai') {
-    const allResults = [...mergedResults.flatMap((m) => [{ id: m.keptId, title: m.mergedTitle, tags: m.tags }]), ...singleResults.map((s) => ({ id: s.id, title: s.title, tags: s.tags }))];
-    const toRemove = await filterIrrelevant(allResults, category);
-    const removeSet = new Set(toRemove);
-    // 从 singleResults 中移除
-    for (let i = singleResults.length - 1; i >= 0; i--) {
-      if (removeSet.has(singleResults[i]!.id)) singleResults.splice(i, 1);
-    }
-    // 从 mergedResults 中移除
-    for (let i = mergedResults.length - 1; i >= 0; i--) {
-      if (removeSet.has(mergedResults[i]!.keptId)) mergedResults.splice(i, 1);
-    }
-  }
+  // AI 过滤暂时关闭 — scoreSingle 的 prompt 已要求 AI 标记 irrelevant
 
   // 5. 写入数据库
   // 5a. 合并条目（高优先级）
   for (const m of mergedResults) {
     const rawItem = unprocessed.find((r) => r.id === m.keptId);
     if (!rawItem) continue;
+
+    let mergedTitle = m.mergedTitle;
+    let mergedSummary = getValidSummary(m.mergedSummary, mergedTitle, rawItem.content);
+    if (rawItem.language === 'en' || !isChinese(mergedTitle)) {
+      try {
+        mergedTitle = await translateToChinese(mergedTitle);
+        mergedSummary = await translateToChinese(mergedSummary);
+      } catch { /* keep */ }
+    }
 
     try {
       await prisma.processedContent.create({
@@ -237,8 +261,8 @@ export async function processCategory(
           sourceName: m.primarySourceName,
           category,
           subcategory: m.subcategory || null,
-          title: m.mergedTitle,
-          summary: m.mergedSummary,
+          title: mergedTitle,
+          summary: mergedSummary,
           importance: m.importance,
           tags: JSON.stringify(m.tags),
           language: 'zh',
@@ -264,7 +288,10 @@ export async function processCategory(
 
     let title = score.title;
     let summary = score.summary;
-    if (rawItem.language === 'en') {
+
+    summary = getValidSummary(summary, title, rawItem.content);
+
+    if (rawItem.language === 'en' || !isChinese(title)) {
       try {
         title = await translateToChinese(title);
         summary = await translateToChinese(summary);

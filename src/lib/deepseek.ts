@@ -167,7 +167,7 @@ export async function verifyAndMerge(
     const content = await chatCompletion([
       {
         role: 'system',
-        content: '你是新闻审核专家。判断多条新闻是否报道同一事件，如果是则合并生成。只返回 JSON，不要其他内容。',
+        content: '你是专业中文新闻审核专家。判断多条新闻是否报道同一事件，如果是则合并生成纯中文输出。只返回 JSON。',
       },
       {
         role: 'user',
@@ -175,13 +175,11 @@ export async function verifyAndMerge(
 
 ${itemsText}
 
-重要：如果你觉得它们有可能是在说同一件事（即使措辞不同、角度不同），就判断为 sameEvent: true。只有完全无关的不同事件才返回 false。
+重要：如果有可能是在说同一件事（即使措辞不同），就判断为 sameEvent: true。
 
 返回 JSON：
-- 同一事件：{"sameEvent": true, "mergedTitle": "综合后的标题", "mergedSummary": "综合后的100字中文摘要", "importance": 1-10, "tags": ["标签"], "subcategory": "分类", "primaryIndex": 0}
-- 完全不同事件：{"sameEvent": false}
-
-评分：多源≥7分，单源参考 sourceRank`,
+- 同一事件：{"sameEvent": true, "mergedTitle": "纯中文综合标题（英文必须翻译）", "mergedSummary": "50-100字纯中文简介（综合各来源，不要重复标题，不要URL）", "importance": 8-10, "tags": ["中文标签"], "subcategory": "中文分类", "primaryIndex": 0}
+- 完全不同事件：{"sameEvent": false}`,
       },
     ]);
 
@@ -253,14 +251,20 @@ export async function scoreSingle(items: VerdictItem[]): Promise<
 
   try {
     const content = await chatCompletion([
-      { role: 'system', content: '你是新闻编辑。对每条新闻评分摘要。只返回 JSON 数组。' },
+      { role: 'system', content: '你是专业中文新闻编辑。你必须确保所有输出都是纯中文。只返回 JSON 数组。' },
       {
         role: 'user',
-        content: `对以下新闻逐条评分（1-10）、写100字中文摘要、打1-3个标签、分二级分类。单源新闻基础分 5-7。
+        content: `对以下新闻逐条处理：
 
 ${itemsText}
 
-返回 JSON 数组：[{"id":"...", "title":"整理的中文标题", "summary":"100字摘要", "importance":6, "tags":["标签"], "subcategory":"分类"}]`,
+要求（严格遵守）：
+1. title：必须是纯中文标题。英文标题必须翻译为中文。原标题无意义的根据内容自拟标题
+2. summary：50-100字的中文新闻简介。介绍新闻的核心内容和背景，不要重复标题，绝对不要包含URL链接。如果原标题和内容无法提取有效信息，根据标题关键词自定义一个合理的简介
+3. 评分 1-10，单源新闻 5-7 分
+4. 1-3 个中文标签
+
+返回 JSON 数组：[{"id":"...", "title":"中文标题", "summary":"50-100字中文简介", "importance":6, "tags":["中文标签"], "subcategory":"中文分类"}]`,
       },
     ]);
 
