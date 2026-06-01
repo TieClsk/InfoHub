@@ -14,3 +14,4 @@ export { fetchWeiboHot } from './weibo-hot';
 export { fetchSinaNews } from './sina-news';
 export { fetch36kr } from './36kr';
 export { fetchInfoq } from './infoq';
+export { fetchSinaIntl } from './sina-intl';
