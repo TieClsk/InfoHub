@@ -1,3 +1,4 @@
+import { Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -9,6 +10,8 @@ interface NewsCardProps {
   importance: number;
   tags: string[] | string;
   publishedAt: string;
+  sourceUrl?: string | null;
+  metadata?: string | null;
 }
 
 function parseTags(tags: string[] | string): string[] {
@@ -19,6 +22,17 @@ function parseTags(tags: string[] | string): string[] {
   } catch {
     return [];
   }
+}
+
+function getSourceUrl(metadata?: string | null, sourceUrl?: string | null): string | null {
+  if (sourceUrl) return sourceUrl;
+  if (metadata) {
+    try {
+      const meta = JSON.parse(metadata) as { sourceUrl?: string };
+      return meta.sourceUrl ?? null;
+    } catch { /* ignore */ }
+  }
+  return null;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -37,7 +51,10 @@ export function NewsCard({
   importance,
   tags,
   publishedAt,
+  sourceUrl,
+  metadata,
 }: NewsCardProps) {
+  const url = getSourceUrl(metadata, sourceUrl);
   const date = new Date(publishedAt).toLocaleDateString('zh-CN', {
     month: 'short',
     day: 'numeric',
@@ -55,12 +72,26 @@ export function NewsCard({
             </Badge>
             <span>{sourceName}</span>
           </div>
-          <div className="flex items-center gap-1">
-            <span className="text-amber-500 font-medium">{importance}</span>
+          <div className="flex items-center gap-0.5 shrink-0" title={`AI 评分 ${importance}/10`}>
+            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+            <span className="text-amber-500 font-medium ml-0.5">{importance}</span>
             <span className="text-[10px]">/10</span>
           </div>
         </div>
-        <CardTitle className="text-base leading-snug mt-1">{title}</CardTitle>
+        <CardTitle className="text-base leading-snug mt-1">
+          {url ? (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline decoration-muted-foreground/30"
+            >
+              {title}
+            </a>
+          ) : (
+            title
+          )}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground line-clamp-2">{summary}</p>

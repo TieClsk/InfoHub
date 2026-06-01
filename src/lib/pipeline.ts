@@ -112,6 +112,7 @@ export async function processCategory(
                 originalTitle: rawItem.title,
                 originalLanguage: rawItem.language,
                 sourceRank: rawItem.sourceRank,
+                sourceUrl: rawItem.externalUrl ?? null,
               }),
             },
           });

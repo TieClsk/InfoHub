@@ -61,8 +61,9 @@ export function NewsContent() {
                 sourceName={item['sourceName'] as string}
                 category={item['category'] as string}
                 importance={item['importance'] as number}
-                tags={item['tags'] as string[]}
+                tags={item['tags'] as string}
                 publishedAt={item['publishedAt'] as string}
+                metadata={item['metadata'] as string | null}
               />
             ))}
           </div>

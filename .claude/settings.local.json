@@ -35,7 +35,12 @@
       "Bash(curl -s http://localhost:3000/api/news?category=github)",
       "Bash(curl -s http://localhost:3000/api/sources)",
       "Bash(curl -s \"http://localhost:3000/api/github/trending?date=$\\(date +%Y-%m-%d\\)\")",
-      "Bash(curl -sI \"https://www.jiqizhixin.com/rss\")"
+      "Bash(curl -sI \"https://www.jiqizhixin.com/rss\")",
+      "Bash(curl -s http://localhost:3000/api/news?category=ai)",
+      "Bash(curl -s http://localhost:3001/api/news?category=github)",
+      "Bash(node -e \"const d=[];process.stdin.on\\('data',c=>d.push\\(c\\)\\);process.stdin.on\\('end',\\(\\)=>{const j=JSON.parse\\(d.join\\(''\\)\\);console.log\\('Total:',j.meta.total\\);const i=j.data[0];console.log\\('Title:',i.title\\);const m=JSON.parse\\(i.metadata||'{}'\\);console.log\\('sourceUrl:',m.sourceUrl\\);console.log\\('Tags:',i.tags\\);}\\)\")",
+      "Bash(curl -s http://localhost:3001/api/sources)",
+      "Bash(curl -s \"http://localhost:3000/api/news?category=github&limit=1\")"
     ],
     "additionalDirectories": [
       "d:\\Study\\项目\\infohub-temp"

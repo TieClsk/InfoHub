@@ -34,23 +34,33 @@ export default async function GithubPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {repos.map((repo) => {
             let sourceRank: number | undefined;
+            let sourceUrl: string | undefined;
             try {
               if (repo.metadata) {
-                const meta = JSON.parse(repo.metadata) as { sourceRank?: number };
+                const meta = JSON.parse(repo.metadata) as { sourceRank?: number; sourceUrl?: string };
                 sourceRank = meta.sourceRank ?? undefined;
+                sourceUrl = meta.sourceUrl ?? undefined;
               }
             } catch { /* ignore */ }
 
             return (
               <Card key={repo.id}>
                 <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-sm line-clamp-2">{repo.title}</h3>
-                    {sourceRank && (
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-semibold text-sm line-clamp-2">
+                      {sourceUrl ? (
+                        <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                          {repo.title}
+                        </a>
+                      ) : (
+                        repo.title
+                      )}
+                    </h3>
+                    {sourceRank ? (
                       <span className="text-xs font-medium text-amber-500 shrink-0 ml-2">
                         ⭐ {sourceRank} today
                       </span>
-                    )}
+                    ) : null}
                   </div>
                 </CardHeader>
                 <CardContent>

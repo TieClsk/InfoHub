@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
           language: true,
           publishedAt: true,
           createdAt: true,
+          metadata: true,
         },
       }),
       prisma.processedContent.count({ where }),

@@ -28,6 +28,7 @@ async function getTopNews() {
           importance: true,
           tags: true,
           publishedAt: true,
+          metadata: true,
         },
       })) as unknown as Array<Record<string, unknown>>;
     }
@@ -62,8 +63,9 @@ export default async function HomePage() {
                   sourceName={item['sourceName'] as string}
                   category={item['category'] as string}
                   importance={item['importance'] as number}
-                  tags={item['tags'] as string[]}
+                  tags={item['tags'] as string}
                   publishedAt={item['publishedAt'] as string}
+                  metadata={item['metadata'] as string | null}
                 />
               ))}
             </div>
