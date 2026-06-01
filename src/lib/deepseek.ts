@@ -227,3 +227,68 @@ export async function generateDetailSummary(
 
   return content.trim();
 }
+
+/**
+ * AI 专用过滤：判断哪些条目不属于 AI/科技 板块
+ * 返回应被过滤掉的 id 列表
+ */
+export async function filterIrrelevant(
+  items: Array<{ id: string; title: string; tags: string[] }>,
+  category: string
+): Promise<string[]> {
+  if (!API_KEY || items.length === 0) return [];
+
+  const categoryRules: Record<string, string> = {
+    ai: `AI/科技板块只保留以下内容：
+- 人工智能、大模型、机器学习、深度学习、NLP、CV
+- AI 应用、AI 安全、AI 芯片、AI 伦理
+- 数据科学、编程开发、开源项目（有技术含量的）
+- 云计算、网络安全、半导体
+- 科技公司重要动态（Meta/Google/微软/英伟达等）
+
+排除以下内容（即使有科技词汇也要排除）：
+- 音乐、娱乐、体育、美食、旅游
+- 历史趣闻、天文、生态、动物
+- 招聘求职、面试（即使是科技公司）
+- 交通、航空、航班（即使提到蓝牙或其他技术词汇）
+- 键盘、笔记本等纯硬件测评（非芯片/AI硬件）
+- 开源地点数据、数据集等纯数据内容
+- 如果只是某个普通产品的介绍，不涉及AI技术，也要排除
+- 如果一条新闻的核心内容与AI/科技无关，即使提到了技术词汇也要排除`,
+  };
+
+  const rule = categoryRules[category];
+  if (!rule) return [];
+
+  try {
+    const prompt = `你是内容审核员。请过滤掉不属于"${category}"板块的条目。
+
+${rule}
+
+以下是待审核条目：
+${items.map((i, idx) => `${idx + 1}. [${i.id}] ${i.title}（标签：${i.tags.join('、')}）`).join('\n')}
+
+重要提示：
+- 如果某条的核心内容与 ${category} 无关，即使标题中有技术词汇（如"蓝牙"、"AI"），也要过滤
+- 例如："美联航767因蓝牙名称触发警报返航" → 核心是航空事故，不是科技新闻，应过滤
+- 例如："招聘AI工程师" → 核心是招聘，应过滤
+- 例如："动物栖息地恢复" → 核心是生态，应过滤
+- 只保留核心内容属于 ${category} 领域的条目
+
+只返回 JSON 数组，包含应过滤掉的 id：["id1", "id2"]`;
+
+    const content = await chatCompletion([
+      {
+        role: 'system',
+        content: '你是一个内容审核助手。只返回 JSON 数组，不要其他输出。',
+      },
+      { role: 'user', content: prompt },
+    ]);
+
+    const jsonStr = content.match(/\[[\s\S]*\]/)?.[0] || content;
+    const ids: unknown = JSON.parse(jsonStr);
+    return Array.isArray(ids) ? (ids as string[]) : [];
+  } catch {
+    return []; // API 失败时不过滤
+  }
+}
