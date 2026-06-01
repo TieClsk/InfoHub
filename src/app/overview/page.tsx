@@ -41,7 +41,7 @@ export default function OverviewPage() {
   const [chat, setChat] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const chatEnd = useRef<HTMLDivElement>(null);
+  const chatListRef = useRef<HTMLDivElement>(null);
 
   // 收集所有推荐问题
   const allQuestions = Object.values(data?.data || {}).flatMap((d) =>
@@ -50,9 +50,8 @@ export default function OverviewPage() {
 
   const prevLen = useRef(0);
   useEffect(() => {
-    // 仅在新消息增加时滚动到底部
-    if (chat.length > prevLen.current) {
-      chatEnd.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chat.length > prevLen.current && chatListRef.current) {
+      chatListRef.current.scrollTop = chatListRef.current.scrollHeight;
     }
     prevLen.current = chat.length;
   }, [chat]);
@@ -171,7 +170,7 @@ export default function OverviewPage() {
           )}
 
           {/* 聊天记录 */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+          <div ref={chatListRef} className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
             {chat.map((m, i) => (
               <div key={i} className={`text-xs ${m.role === 'user' ? 'bg-muted rounded-lg px-2 py-1.5' : 'border rounded-lg px-2 py-1.5'}`}>
                 <span className="text-[10px] text-muted-foreground">{m.role === 'user' ? '你' : 'AI'}</span>
@@ -185,7 +184,6 @@ export default function OverviewPage() {
               </div>
             ))}
             {sending && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-            <div ref={chatEnd} />
           </div>
 
           {/* 输入框 */}
