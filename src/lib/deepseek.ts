@@ -5,7 +5,7 @@ const BASE_URL = process.env['DEEPSEEK_BASE_URL'] || 'https://api.deepseek.com';
 const API_KEY = process.env['DEEPSEEK_API_KEY'] || '';
 
 interface ChatMessage {
-  role: 'system' | 'user';
+  role: 'system' | 'user' | 'assistant';
   content: string;
 }
 
@@ -291,4 +291,65 @@ ${items.map((i, idx) => `${idx + 1}. [${i.id}] ${i.title}（标签：${i.tags.jo
   } catch {
     return []; // API 失败时不过滤
   }
+}
+
+/**
+ * 生成 3 个推荐追问
+ */
+export async function generateSuggestedQuestions(
+  title: string,
+  summary: string
+): Promise<string[]> {
+  if (!API_KEY) return [];
+
+  try {
+    const content = await chatCompletion([
+      {
+        role: 'system',
+        content:
+          '你是一个好奇心强的读者。从以下内容中提炼 3 个读者可能会追问的问题。返回 JSON 字符串数组，不要其他内容。问题要有深度，不能是简单的"是什么"。',
+      },
+      {
+        role: 'user',
+        content: `标题：${title}\n摘要：${summary}\n\n请返回 3 个读者可能追问的问题：`,
+      },
+    ]);
+
+    const jsonStr = content.match(/\[[\s\S]*\]/)?.[0] || content;
+    const questions: unknown = JSON.parse(jsonStr);
+    return Array.isArray(questions) ? (questions as string[]).slice(0, 3) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * AI 问答对话
+ */
+export async function chatAboutContent(
+  title: string,
+  summary: string,
+  detailSummary: string,
+  question: string,
+  history: Array<{ role: string; content: string }>
+): Promise<string> {
+  if (!API_KEY) return 'AI 服务未配置，请设置 DEEPSEEK_API_KEY。';
+
+  const context = `你是一个知识渊博的助手。用户正在阅读以下内容，请基于内容和你的知识回答问题。如果问题与内容无关，可以适当延伸。回答简洁、专业、中文。
+
+内容标题：${title}
+内容摘要：${summary}
+${detailSummary ? `深度概述：${detailSummary}` : ''}`;
+
+  const messages: ChatMessage[] = [
+    { role: 'system', content: context },
+    ...history.map((h): ChatMessage => ({
+      role: h.role === 'assistant' ? 'assistant' : 'user',
+      content: h.content,
+    })),
+    { role: 'user', content: question },
+  ];
+
+  const content = await chatCompletion(messages);
+  return content;
 }

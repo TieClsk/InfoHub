@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { generateDetailSummary } from '@/lib/deepseek';
+import { generateDetailSummary, generateSuggestedQuestions } from '@/lib/deepseek';
 import type { ApiResponse } from '@/types';
 
 export async function POST(request: NextRequest) {
@@ -33,10 +33,16 @@ export async function POST(request: NextRequest) {
     } catch { /* ignore */ }
 
     if (meta['detailedSummary']) {
-      const response: ApiResponse<{ detailedSummary: string; cached: boolean }> = {
+      const questions = (meta['questions'] as string[]) ?? [];
+      const response: ApiResponse<{
+        detailedSummary: string;
+        questions: string[];
+        cached: boolean;
+      }> = {
         success: true,
         data: {
           detailedSummary: meta['detailedSummary'] as string,
+          questions,
           cached: true,
         },
       };
@@ -52,24 +58,35 @@ export async function POST(request: NextRequest) {
     );
 
     if (!detailedSummary) {
-      // API key 未配置等降级
-      const response: ApiResponse<{ detailedSummary: string; cached: boolean }> = {
+      const response: ApiResponse<{
+        detailedSummary: string;
+        questions: string[];
+        cached: boolean;
+      }> = {
         success: true,
-        data: { detailedSummary: '', cached: false },
+        data: { detailedSummary: '', questions: [], cached: false },
       };
       return NextResponse.json(response);
     }
 
-    // 缓存到 metadata
+    // 同时生成推荐问题
+    const questions = await generateSuggestedQuestions(item.title, item.summary);
+
+    // 缓存
     meta['detailedSummary'] = detailedSummary;
+    meta['questions'] = questions;
     await prisma.processedContent.update({
       where: { id },
       data: { metadata: JSON.stringify(meta) },
     });
 
-    const response: ApiResponse<{ detailedSummary: string; cached: boolean }> = {
+    const response: ApiResponse<{
+      detailedSummary: string;
+      questions: string[];
+      cached: boolean;
+    }> = {
       success: true,
-      data: { detailedSummary, cached: false },
+      data: { detailedSummary, questions, cached: false },
     };
     return NextResponse.json(response);
   } catch (error) {
