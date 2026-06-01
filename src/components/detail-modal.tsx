@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { Star, ExternalLink, X, Tag, Loader2, Send, MessageCircle } from 'lucide-react';
+import { Sparkles, ExternalLink, X, Tag, Loader2, Send, MessageCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -160,8 +160,8 @@ export function DetailModal({
             <Badge variant="secondary">{CATEGORY_LABELS[category] ?? category}</Badge>
             <span>{sourceName}</span>
             <span className="flex items-center gap-1">
-              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-              <span className="text-amber-500 font-medium">{importance}</span>/10
+              <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+              <span className="text-purple-500 font-medium">{importance}</span>/10
             </span>
             <time>{date}</time>
           </div>

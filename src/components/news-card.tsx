@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Star } from 'lucide-react';
+import { Star, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DetailModal } from './detail-modal';
@@ -114,8 +114,8 @@ export function NewsCard({
                 </span>
               )}
               <span className="flex items-center gap-0.5" title={`AI 评分 ${importance}/10`}>
-                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                <span className="text-amber-500 font-medium">{importance}</span>
+                <Sparkles className="h-3 w-3 text-purple-400" />
+                <span className="text-purple-500 font-medium">{importance}</span>
                 <span className="text-[10px]">/10</span>
               </span>
             </div>

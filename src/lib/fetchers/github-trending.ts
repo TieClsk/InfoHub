@@ -63,8 +63,8 @@ export async function fetchGithubTrending(): Promise<FetcherResult<RawContentInp
       sourceId: SOURCE_ID,
       externalId: item.repoName,
       externalUrl: item.repoUrl,
-      title: `${item.repoName} ⭐${item.todayStars} today`, // 标题保留关键排名信息
-      sourceRank: item.todayStars, // 以今日 star 数作为原始热度排名
+      title: item.description ? `${item.repoName}: ${item.description}` : item.repoName,
+      sourceRank: item.todayStars,
       rawData: item as unknown as Record<string, unknown>,
       language: 'en',
     }));
