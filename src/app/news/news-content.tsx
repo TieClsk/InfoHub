@@ -1,10 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import useSWR from 'swr';
+import { BarChart3, TrendingUp } from 'lucide-react';
 import { NewsCard } from '@/components/news-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import type { ApiResponse } from '@/types';
 
 const CATEGORIES = [
@@ -22,15 +25,44 @@ export function NewsContent() {
   const router = useRouter();
   const category = searchParams.get('category') ?? 'domestic';
   const page = parseInt(searchParams.get('page') ?? '1', 10);
+  const [sortBy, setSortBy] = useState<'rating' | 'hot'>('rating');
 
   const { data, isLoading } = useSWR<ApiResponse<Array<Record<string, unknown>>>>(
     `/api/news?category=${category}&page=${page}&limit=20`,
     fetcher
   );
 
+  // Weibo: 支持按热搜排名排序
+  const items = data?.data ? [...data.data] : [];
+  const getHotRank = (meta: string | null) => {
+    if (!meta) return 0;
+    try { return (JSON.parse(meta) as { sourceRank?: number }).sourceRank || 0; } catch { return 0; }
+  };
+  if (category === 'weibo' && sortBy === 'hot') {
+    items.sort((a, b) => getHotRank((b['metadata'] as string) || null) - getHotRank((a['metadata'] as string) || null));
+  }
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">新闻列表</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">新闻列表</h1>
+        {category === 'weibo' && (
+          <div className="flex items-center rounded-lg border">
+            <Button
+              variant={sortBy === 'rating' ? 'default' : 'ghost'} size="sm"
+              onClick={() => setSortBy('rating')} className="rounded-r-none"
+            >
+              <BarChart3 className="h-3.5 w-3.5 mr-1" />评分
+            </Button>
+            <Button
+              variant={sortBy === 'hot' ? 'default' : 'ghost'} size="sm"
+              onClick={() => setSortBy('hot')} className="rounded-l-none"
+            >
+              <TrendingUp className="h-3.5 w-3.5 mr-1" />热度
+            </Button>
+          </div>
+        )}
+      </div>
 
       <Tabs
         value={category}
@@ -51,10 +83,10 @@ export function NewsContent() {
             <Skeleton key={i} className="h-40" />
           ))}
         </div>
-      ) : data?.data?.length ? (
+      ) : items.length ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {data.data.map((item: Record<string, unknown>) => (
+            {items.map((item: Record<string, unknown>) => (
               <NewsCard
                 key={item['id'] as string}
                 id={item['id'] as string}
@@ -70,8 +102,8 @@ export function NewsContent() {
             ))}
           </div>
 
-          {data.meta && (() => {
-            const totalPages = Math.max(1, Math.ceil((data.meta.total || 1) / (data.meta.limit || 20)));
+          {data?.meta && (() => {
+            const totalPages = Math.max(1, Math.ceil(((data?.meta?.total) || 1) / ((data?.meta?.limit) || 20)));
 
             // 生成要显示的页码：1, ..., 当前附近, ..., X
             const pages: (number | string)[] = [1];
