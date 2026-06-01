@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 import { PrismaClient } from '../src/generated/prisma/client';
 import {
@@ -12,7 +13,11 @@ import {
 } from '../src/lib/fetchers';
 import { processCategory } from '../src/lib/pipeline';
 
-const prisma = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: 'file:./dev.db' }) });
+const url = process.env['DATABASE_URL'] || 'file:./dev.db';
+const adapter = url.startsWith('file:')
+  ? new PrismaBetterSqlite3({ url })
+  : new PrismaPg({ connectionString: url });
+const prisma = new PrismaClient({ adapter });
 
 const SOURCES = [
   // 国内（6源）
