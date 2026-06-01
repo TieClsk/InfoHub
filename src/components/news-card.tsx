@@ -87,7 +87,7 @@ export function NewsCard({
 
   return (
     <>
-      <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+      <Card className={`hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 ${sourceCount > 1 ? 'border-l-2 border-l-green-400' : ''}`}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
@@ -113,10 +113,10 @@ export function NewsCard({
                   <span>今日</span>
                 </span>
               )}
-              <span className="flex items-center gap-0.5" title={`AI 评分 ${importance}/10`}>
+              <span className="flex items-baseline gap-0.5" title={`AI 评分 ${Number(importance).toFixed(1)}/10`}>
                 <BarChart3 className="h-3 w-3 text-blue-400" />
-                <span className="text-blue-500 font-medium">{importance}</span>
-                <span className="text-[10px]">/10</span>
+                <span className="text-blue-500 font-medium tabular-nums">{Number(importance).toFixed(1)}</span>
+                <span className="text-[10px] text-muted-foreground">/10</span>
               </span>
             </div>
           </div>
