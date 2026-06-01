@@ -22,7 +22,9 @@
       "Bash(ls -la .env*)",
       "Bash(git check-ignore *)",
       "Bash(node -e \"console.log\\(require\\('./node_modules/prisma/package.json'\\).version\\)\")",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(npx tsc *)",
+      "WebSearch"
     ],
     "additionalDirectories": [
       "d:\\Study\\项目\\infohub-temp"
