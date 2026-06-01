@@ -69,12 +69,13 @@ function extractJson(content: string): string {
  */
 export async function processBatch(
   items: AIProcessInput[],
-  sourceNameMap: Record<string, string>
+  sourceNameMap: Record<string, string>,
+  category: string
 ): Promise<AIProcessOutput[]> {
   const itemsForAI = items.map((item) => ({
     id: item.id,
     title: item.title,
-    content: item.content?.slice(0, 500) ?? '', // 截断过长内容
+    content: item.content?.slice(0, 500) ?? '',
     sourceRank: item.sourceRank ?? 0,
     sourceId: item.sourceId,
     sourceName: sourceNameMap[item.sourceId] ?? item.sourceId,
@@ -84,6 +85,7 @@ export async function processBatch(
   }));
 
   const prompt = PROMPTS.BATCH_PROCESS.template
+    .replace('{{category}}', category)
     .replace('{{count}}', String(itemsForAI.length))
     .replace('{{items}}', JSON.stringify(itemsForAI, null, 2));
 

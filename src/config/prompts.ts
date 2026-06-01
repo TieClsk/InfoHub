@@ -1,26 +1,31 @@
 export const PROMPTS = {
   BATCH_PROCESS: {
-    version: '1.0',
+    version: '1.1',
     system:
       '你是专业新闻编辑。你擅长识别重复新闻、评估新闻重要性、撰写简洁摘要，以及为内容打标签分类。你必须严格返回 JSON 格式，不要输出其他内容。',
-    template: `请处理以下 {{count}} 条新闻：
+    template: `请处理以下 {{count}} 条内容（所属板块：{{category}}）：
 
 任务：
-1. 识别报道同一事件的新闻，只保留最详细的一条（标记 isDuplicate: true 和 duplicateOf 指向被保留的 id）
-2. 为每条新闻评分（1-10，10 最重要）。参考 sourceRank（数值越大越热门），但跨源报道需综合判断，不要机械照搬
+1. 识别报道同一事件的条目，只保留最详细的一条（标记 isDuplicate: true 和 duplicateOf 指向被保留的 id）
+2. 为每条内容评分（1-10，10 最重要）。参考 sourceRank（数值越大越热门），但需综合判断，不要机械照搬
 3. 生成不超过 100 字的中文摘要
-4. 分配二级分类和标签（tags 数组，1-3 个标签）
+4. 分配二级分类和 1-3 个标签
 
-新闻列表：
+标题和标签规则：
+- 标题直接概括内容即可，不要添加板块名称前缀（如"GitHub热门项目："、"AI 新闻："等）
+- 标签要具体有意义，不要使用板块通用标签（如"GitHub Trending"、"高星项目"、"热门新闻"、"开源项目"等无辨识度的词）
+- 标签应使用技术栈名（Python、Rust）、公司名（微软、OpenAI）、具体领域（大模型、芯片、前端）等有区分度的词
+
+内容列表：
 {{items}}
 
 请严格以 JSON 数组格式返回，每条格式：
 {
   "id": "原始id",
-  "title": "AI整理后的中文标题",
+  "title": "整理后的中文标题",
   "summary": "100字以内中文摘要",
   "importance": 1-10,
-  "tags": ["标签1", "标签2"],
+  "tags": ["具体标签"],
   "subcategory": "二级分类",
   "isDuplicate": false,
   "duplicateOf": null

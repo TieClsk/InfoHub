@@ -34,7 +34,8 @@
       "Bash(curl -s http://localhost:3000)",
       "Bash(curl -s http://localhost:3000/api/news?category=github)",
       "Bash(curl -s http://localhost:3000/api/sources)",
-      "Bash(curl -s \"http://localhost:3000/api/github/trending?date=$\\(date +%Y-%m-%d\\)\")"
+      "Bash(curl -s \"http://localhost:3000/api/github/trending?date=$\\(date +%Y-%m-%d\\)\")",
+      "Bash(curl -sI \"https://www.jiqizhixin.com/rss\")"
     ],
     "additionalDirectories": [
       "d:\\Study\\项目\\infohub-temp"

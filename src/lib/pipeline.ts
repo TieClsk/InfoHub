@@ -75,7 +75,7 @@ export async function processCategory(
         publishedAt: item.fetchedAt.toISOString(),
       }));
 
-      const results = await processBatch(aiInputs, sourceNameMap);
+      const results = await processBatch(aiInputs, sourceNameMap, category);
 
       for (const result of results) {
         if (result.isDuplicate) continue;
