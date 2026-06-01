@@ -594,7 +594,15 @@ export async function generateUnifiedOverview(
 
 ${sections}
 
-生成6个模块（每个150-250字Markdown，连贯叙述不罗列，分析联系和趋势）：
+生成6个模块（每个200-300字，content字段内必须是Markdown）：
+
+Markdown格式要求：
+- 每个模块用 ### 小标题分成2-3段
+- 用 **加粗** 突出关键词、公司名、数据
+- 用 - 列表呈现要点
+- 绝对不要返回整段连续纯文本，必须结构化
+- GitHub模块必须有：热门类型、代表项目、技术趋势
+- 投资模块必须有：市场动态、趋势判断、关注方向
 
 1. **时事热点** — 综合热点事件分析
 2. **时政消息** — 政策外交动态分析
@@ -603,7 +611,7 @@ ${sections}
 5. **GitHub热榜** — 热门项目类型趋势
 6. **舆论消息** — 社交热议焦点
 
-返回JSON：{"modules":[{"label":"时事热点","icon":"🔥","content":"..."},...],"questions":["5个问题"]}` },
+返回JSON格式（content内必须是Markdown）：{"modules":[{"label":"时事热点","icon":"🔥","content":"### 小标题\\n\\n**加粗关键词**...\\n\\n- 要点"}],"questions":["追问1"]}` },
     ]);
 
     const raw = content.trim();
