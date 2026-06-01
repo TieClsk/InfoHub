@@ -87,7 +87,7 @@ export function NewsCard({
 
   return (
     <>
-      <Card className={`hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 ${sourceCount > 1 ? 'border-l-2 border-l-green-400' : ''}`}>
+      <Card className={`hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 ${sourceCount > 1 ? 'ring-1 ring-green-400/50 bg-green-50/30 dark:bg-green-950/10' : ''}`}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
@@ -95,12 +95,13 @@ export function NewsCard({
                 {CATEGORY_LABELS[category] ?? category}
               </Badge>
               {sourceCount > 1 ? (
-                <span
-                  className="text-[10px] text-green-600 dark:text-green-400 font-medium"
+                <Badge
+                  variant="outline"
+                  className="text-[10px] px-1.5 py-0 border-green-400 text-green-600 dark:text-green-400 font-medium"
                   title={sourceNames.join('、')}
                 >
                   {sourceCount} 家媒体
-                </span>
+                </Badge>
               ) : (
                 <span>{sourceName}</span>
               )}
