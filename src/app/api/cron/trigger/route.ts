@@ -8,9 +8,10 @@ const ALL_CATEGORIES = [
   'ai',
   'github',
   'investment',
+  'weibo',
 ];
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     // 鉴权：检查 CRON_SECRET
     const authHeader = request.headers.get('authorization');
@@ -24,12 +25,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const body = (await request.json().catch(() => ({}))) as {
-      action?: string;
-      category?: string;
-    };
-
-    const action = body.action ?? 'full';
+    const { searchParams } = new URL(request.url);
+    const action = searchParams.get('action') ?? 'full';
+    const category = searchParams.get('category') ?? ALL_CATEGORIES[0]!;
 
     switch (action) {
       case 'fetch': {
@@ -39,7 +37,6 @@ export async function POST(request: NextRequest) {
       }
       case 'process': {
         // 仅 AI 处理
-        const category = body.category ?? ALL_CATEGORIES[0]!;
         const result = await processCategory(category);
         return NextResponse.json({ success: true, data: result });
       }

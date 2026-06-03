@@ -3,7 +3,7 @@ import { fetchGithubTrending, fetchHackerNews, fetchRenminNews, fetchNhkNews, fe
 import { processCategory } from '@/lib/pipeline';
 import { cleanupRawContent } from '@/lib/pipeline';
 
-const CATEGORIES = ['domestic', 'international', 'ai', 'github', 'investment'];
+const CATEGORIES = ['domestic', 'international', 'ai', 'github', 'investment', 'weibo'];
 const retentionDays = parseInt(process.env['RAW_RETENTION_DAYS'] ?? '14', 10);
 
 export async function GET(request: NextRequest) {
@@ -66,7 +66,11 @@ export async function GET(request: NextRequest) {
   // 4. 刷新速览缓存
   try {
     const baseUrl = request.nextUrl.origin;
-    await fetch(`${baseUrl}/api/ai/overview`, { method: 'POST' });
+    const headers: Record<string, string> = {};
+    if (cronSecret && cronSecret.length >= 32) {
+      headers['Authorization'] = `Bearer ${cronSecret}`;
+    }
+    await fetch(`${baseUrl}/api/ai/overview`, { method: 'POST', headers });
     logs.push('[overview] cache refreshed');
   } catch (err) {
     logs.push(`[overview] ERROR: ${err instanceof Error ? err.message : String(err)}`);
