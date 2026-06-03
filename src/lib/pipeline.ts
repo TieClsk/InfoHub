@@ -98,6 +98,13 @@ function getValidSummary(aiSummary: string, title: string, rawContent: string | 
   return title;
 }
 
+/** 将日期调整为前一天，确保凌晨定时处理的数据归类到"昨天" */
+function dayBefore(d: Date): Date {
+  const r = new Date(d);
+  r.setDate(r.getDate() - 1);
+  return r;
+}
+
 async function getSourceNameMap(): Promise<Record<string, string>> {
   const sources = await prisma.dataSource.findMany({ select: { name: true, displayName: true } });
   const map: Record<string, string> = {};
@@ -266,7 +273,7 @@ export async function processCategory(
           importance: m.importance,
           tags: JSON.stringify(m.tags),
           language: 'zh',
-          publishedAt: rawItem.fetchedAt,
+          publishedAt: dayBefore(rawItem.fetchedAt),
           metadata: JSON.stringify({
             sourceRank: m.primarySourceRank,
             sourceUrl: m.primarySourceUrl,
@@ -311,7 +318,7 @@ export async function processCategory(
           importance: score.importance,
           tags: JSON.stringify(score.tags),
           language: 'zh',
-          publishedAt: rawItem.fetchedAt,
+          publishedAt: dayBefore(rawItem.fetchedAt),
           metadata: JSON.stringify({
             sourceRank: rawItem.sourceRank,
             sourceUrl: rawItem.externalUrl,
