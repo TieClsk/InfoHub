@@ -15,10 +15,11 @@ export async function GET(request: NextRequest) {
       orderBy: { publishedAt: 'desc' },
     });
 
-    // 提取唯一日期（YYYY-MM-DD）
+    // 提取唯一日期（本地时区，避免 UTC 跨天偏差）
     const dateSet = new Set<string>();
     for (const r of rows) {
-      const d = r.publishedAt.toISOString().slice(0, 10);
+      const pub = r.publishedAt;
+      const d = `${pub.getFullYear()}-${String(pub.getMonth() + 1).padStart(2, '0')}-${String(pub.getDate()).padStart(2, '0')}`;
       dateSet.add(d);
       if (dateSet.size >= 60) break;
     }

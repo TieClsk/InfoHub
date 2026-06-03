@@ -26,8 +26,9 @@ export function NewsContent() {
   const router = useRouter();
   const category = searchParams.get('category') ?? 'domestic';
   const page = parseInt(searchParams.get('page') ?? '1', 10);
+  const localDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-  const date = searchParams.get('date') || yesterday.toISOString().slice(0, 10);
+  const date = searchParams.get('date') || localDate(yesterday);
   const [sortBy, setSortBy] = useState<'rating' | 'multi' | 'hot'>('rating');
 
   const dateParam = searchParams.get('date') ? `&date=${searchParams.get('date')}` : '';

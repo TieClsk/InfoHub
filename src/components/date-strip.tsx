@@ -1,12 +1,16 @@
 'use client';
 
 import useSWR from 'swr';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface DateStripProps {
   selected: string; // YYYY-MM-DD
   onChange: (date: string) => void;
   category?: string;
+}
+
+/** 本地时区日期格式化，避免 UTC 导致的跨天偏差 */
+function localDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -20,24 +24,24 @@ export function DateStrip({ selected, onChange, category }: DateStripProps) {
   );
 
   const availableDates = new Set(data?.data || []);
-  const selectedDate = selected || new Date().toISOString().slice(0, 10);
+  const selectedDate = selected || localDate(new Date());
 
-  // 生成前后15天的日期列表
-  const today = new Date();
+  // 生成最近 15 天的日期列表
+  const now = new Date();
   const dates: string[] = [];
   for (let i = -15; i <= 0; i++) {
-    const d = new Date(today);
+    const d = new Date(now);
     d.setDate(d.getDate() + i);
-    dates.push(d.toISOString().slice(0, 10));
+    dates.push(localDate(d));
   }
 
   return (
     <div className="flex items-center gap-1 overflow-x-auto py-2">
       {dates.map((d) => {
         const hasNews = availableDates.has(d);
-        const today = new Date().toISOString().slice(0, 10);
+        const today = localDate(new Date());
         const y = new Date(); y.setDate(y.getDate() - 1);
-        const yesterday = y.toISOString().slice(0, 10);
+        const yesterday = localDate(y);
         const isToday = d === today;
         const isYesterday = d === yesterday;
         const isSelected = d === selectedDate;

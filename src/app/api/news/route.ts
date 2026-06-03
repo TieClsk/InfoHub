@@ -16,8 +16,9 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
     if (category) where['category'] = category;
     if (date) {
-      const start = new Date(date + 'T00:00:00.000Z');
-      const end = new Date(date + 'T23:59:59.999Z');
+      const [y, m, d] = date.split('-').map(Number);
+      const start = new Date(y!, m! - 1, d!, 0, 0, 0);
+      const end = new Date(y!, m! - 1, d!, 23, 59, 59, 999);
       where['publishedAt'] = { gte: start, lte: end };
     }
 
