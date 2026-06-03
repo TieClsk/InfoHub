@@ -115,6 +115,7 @@ model RawContent {
   sourceRank  Int?
   rawData     String?  // JSON 字符串
   language    String   @default("zh")
+  publishedAt DateTime? // 新闻源端发布时间
   fetchedAt   DateTime @default(now())
   createdAt   DateTime @default(now())
 

@@ -39,6 +39,7 @@ export async function fetchRssSource(
       sourceRank: undefined, // RSS 通常无排名，可留空
       rawData: item as unknown as Record<string, unknown>,
       language: config.language ?? 'zh',
+      publishedAt: item.pubDate || item.isoDate, // 源端发布时间
     }));
 
     const result = await insertRawContents(items, config.sourceId);

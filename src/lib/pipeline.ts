@@ -98,11 +98,9 @@ function getValidSummary(aiSummary: string, title: string, rawContent: string | 
   return title;
 }
 
-/** 凌晨采集的新闻实际发生在昨天，publishedAt = 采集日 - 1 天 */
-function adjustPublishedAt(d: Date): Date {
-  const r = new Date(d);
-  r.setDate(r.getDate() - 1);
-  return r;
+/** 优先用源端发布时间，没有则用采集时间兜底 */
+function resolvePublishedAt(rawItem: { publishedAt: Date | null; fetchedAt: Date }): Date {
+  return rawItem.publishedAt ?? rawItem.fetchedAt;
 }
 
 async function getSourceNameMap(): Promise<Record<string, string>> {
@@ -273,7 +271,7 @@ export async function processCategory(
           importance: m.importance,
           tags: JSON.stringify(m.tags),
           language: 'zh',
-          publishedAt: adjustPublishedAt(rawItem.fetchedAt),
+          publishedAt: resolvePublishedAt(rawItem),
           metadata: JSON.stringify({
             sourceRank: m.primarySourceRank,
             sourceUrl: m.primarySourceUrl,
@@ -318,7 +316,7 @@ export async function processCategory(
           importance: score.importance,
           tags: JSON.stringify(score.tags),
           language: 'zh',
-          publishedAt: adjustPublishedAt(rawItem.fetchedAt),
+          publishedAt: resolvePublishedAt(rawItem),
           metadata: JSON.stringify({
             sourceRank: rawItem.sourceRank,
             sourceUrl: rawItem.externalUrl,

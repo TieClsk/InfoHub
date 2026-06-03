@@ -25,6 +25,7 @@ export async function fetchHackerNews(): Promise<FetcherResult<RawContentInput>>
       sourceRank: item.points ?? undefined,
       rawData: item as unknown as Record<string, unknown>,
       language: 'en',
+      publishedAt: item.pubDate || undefined,
     }));
 
     const result = await insertRawContents(rawItems, SOURCE_ID);
@@ -66,6 +67,7 @@ interface RssItem {
   link?: string;
   description?: string;
   points?: number;
+  pubDate?: string;
 }
 
 function cleanCdata(s: string): string {
@@ -86,6 +88,7 @@ function parseRssItems(xml: string): RssItem[] {
       title: getTag('title'),
       link: getTag('link'),
       description: getTag('description')?.replace(/<[^>]*>/g, ''),
+      pubDate: getTag('pubDate'),
     });
   }
   return items;

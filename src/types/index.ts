@@ -17,6 +17,7 @@ export interface RawContentInput {
   sourceRank?: number;
   rawData?: Record<string, unknown>;
   language?: string;
+  publishedAt?: string; // ISO 字符串，新闻源端发布时间
 }
 
 // AI 处理输入

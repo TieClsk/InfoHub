@@ -60,11 +60,13 @@ export async function insertRawContents(
           sourceRank: item.sourceRank,
           rawData: toJsonStr(item.rawData),
           language: item.language ?? 'zh',
+          publishedAt: item.publishedAt ? new Date(item.publishedAt) : null,
         },
         update: {
           sourceRank: item.sourceRank,
           rawData: toJsonStr(item.rawData),
           title: item.title,
+          publishedAt: item.publishedAt ? new Date(item.publishedAt) : undefined,
         },
       });
       newCount++;
@@ -89,11 +91,13 @@ export async function insertRawContents(
                 sourceRank: item.sourceRank,
                 rawData: toJsonStr(item.rawData),
                 language: item.language ?? 'zh',
+                publishedAt: item.publishedAt ? new Date(item.publishedAt) : null,
               },
               update: {
                 sourceRank: item.sourceRank,
                 rawData: toJsonStr(item.rawData),
                 title: item.title,
+                publishedAt: item.publishedAt ? new Date(item.publishedAt) : undefined,
               },
             });
             newCount++;

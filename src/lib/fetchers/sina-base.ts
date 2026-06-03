@@ -27,6 +27,7 @@ export async function fetchSinaSource(config: SinaSource): Promise<FetcherResult
           sourceId, externalId: item.url?.split('/').pop()?.slice(0, 50) || `${sourceId}-${page}-${allItems.length}`,
           externalUrl: item.url, title, content: item.intro,
           rawData: item as unknown as Record<string, unknown>, language: 'zh',
+          publishedAt: item.ctime ? new Date(parseInt(item.ctime) * 1000).toISOString() : undefined,
         });
       }
     } catch { break; }
