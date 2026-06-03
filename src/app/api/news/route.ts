@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     if (date) {
       const start = new Date(date + 'T00:00:00.000Z');
       const end = new Date(date + 'T23:59:59.999Z');
-      where['createdAt'] = { gte: start, lte: end };
+      where['publishedAt'] = { gte: start, lte: end };
     }
 
     // 多源模式：取更多数据供前端排序
