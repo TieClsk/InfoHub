@@ -98,15 +98,10 @@ function getValidSummary(aiSummary: string, title: string, rawContent: string | 
   return title;
 }
 
-/**
- * 凌晨时段（0:00-5:59）的数据向前偏移一天，归类到"昨天"。
- * 白天手动触发不受影响。
- */
+/** 发布日期 = 采集日期 - 1 天（采集的是前一天的内容） */
 function adjustPublishedAt(d: Date): Date {
   const r = new Date(d);
-  if (r.getHours() < 6) {
-    r.setDate(r.getDate() - 1);
-  }
+  r.setDate(r.getDate() - 1);
   return r;
 }
 
