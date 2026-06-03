@@ -63,9 +63,10 @@ export async function register(): Promise<void> {
       console.error(`[cron][cleanup] ERROR: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    // 4. 刷新 overview 缓存
+    // 4. 刷新 overview 缓存（写入文件持久化）
     try {
       const { generateUnifiedOverview } = await import('@/lib/deepseek');
+      const { setCache } = await import('@/lib/overview-cache');
       const { prisma } = await import('@/lib/db');
 
       const MODULES = [
@@ -88,8 +89,9 @@ export async function register(): Promise<void> {
         categories.push({ label: m.label, icon: m.icon, items: items.map((i) => ({ ...i, publishedAt: i.publishedAt.toISOString() })) });
       }
 
-      await generateUnifiedOverview(categories);
-      console.log('[cron][overview] cache refreshed');
+      const result = await generateUnifiedOverview(categories);
+      setCache(result);
+      console.log('[cron][overview] cache written to disk');
     } catch (err) {
       console.error(`[cron][overview] ERROR: ${err instanceof Error ? err.message : String(err)}`);
     }

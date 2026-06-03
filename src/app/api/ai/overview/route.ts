@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { generateUnifiedOverview } from '@/lib/deepseek';
+import { getCache, setCache } from '@/lib/overview-cache';
 import type { ApiResponse } from '@/types';
 
 const MODULES = [
@@ -12,11 +13,7 @@ const MODULES = [
   { key: 'weibo', label: '舆论消息', icon: '💬', where: { category: 'weibo' } },
 ];
 
-interface ModuleResult { label: string; icon: string; content: string }
-
-let cache: { modules: ModuleResult[]; questions: string[]; ts: number } | null = null;
-
-async function generateAll() {
+async function refreshOverview() {
   const categories = [];
   for (const m of MODULES) {
     const items = await prisma.processedContent.findMany({
@@ -29,19 +26,30 @@ async function generateAll() {
   }
 
   const result = await generateUnifiedOverview(categories);
-  cache = { ...result, ts: Date.now() };
-  return result;
+  return setCache(result);
 }
 
 export async function GET() {
-  if (cache) {
-    return NextResponse.json({ success: true, data: cache } as ApiResponse<typeof cache>, { headers: { 'X-Cache': 'HIT' } });
+  // 先检查文件缓存
+  const cached = getCache();
+  if (cached) {
+    return NextResponse.json(
+      { success: true, data: { modules: cached.modules, questions: cached.questions, ts: cached.ts } } as ApiResponse<typeof cached>,
+      { headers: { 'X-Cache': 'HIT' } }
+    );
   }
+
   try {
-    const r = await generateAll();
-    return NextResponse.json({ success: true, data: r } as ApiResponse<typeof r>, { headers: { 'X-Cache': 'MISS' } });
+    const r = await refreshOverview();
+    return NextResponse.json(
+      { success: true, data: r } as ApiResponse<typeof r>,
+      { headers: { 'X-Cache': 'MISS' } }
+    );
   } catch (error) {
-    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' } }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' } },
+      { status: 500 }
+    );
   }
 }
 
@@ -51,9 +59,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED' } }, { status: 401 });
   }
   try {
-    const r = await generateAll();
+    const r = await refreshOverview();
     return NextResponse.json({ success: true, data: r });
   } catch (error) {
-    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' } }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' } },
+      { status: 500 }
+    );
   }
 }
