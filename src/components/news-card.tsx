@@ -78,7 +78,13 @@ export function NewsCard({
       sourceRank = meta.sourceRank ?? 0;
     } catch { /* ignore */ }
   }
-  const date = new Date(publishedAt).toLocaleDateString('zh-CN', {
+  let isEstimated = false;
+  if (metadata) {
+    try {
+      isEstimated = !!(JSON.parse(metadata) as { isEstimated?: boolean }).isEstimated;
+    } catch { /* ignore */ }
+  }
+  const dateStr = new Date(publishedAt).toLocaleDateString('zh-CN', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -163,7 +169,9 @@ export function NewsCard({
                 </Badge>
               ))}
             </div>
-            <time className="text-xs text-muted-foreground">{date}</time>
+            <time className={`text-xs ${isEstimated ? 'text-orange-500' : 'text-muted-foreground'}`} title={isEstimated ? '采集时间（源端未提供发布时间）' : '新闻发布时间'}>
+              {isEstimated ? '📡 ' : ''}{dateStr}
+            </time>
           </div>
         </CardContent>
       </Card>

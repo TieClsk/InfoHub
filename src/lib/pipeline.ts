@@ -98,9 +98,15 @@ function getValidSummary(aiSummary: string, title: string, rawContent: string | 
   return title;
 }
 
-/** 优先用源端发布时间，没有则用采集时间兜底 */
-function resolvePublishedAt(rawItem: { publishedAt: Date | null; fetchedAt: Date }): Date {
-  return rawItem.publishedAt ?? rawItem.fetchedAt;
+/** 优先用源端发布时间，没有则用采集时间兜底。同时返回是否兜底标记。 */
+function resolvePublishedAt(rawItem: { publishedAt: Date | null; fetchedAt: Date }): { date: Date; isEstimated: boolean } {
+  if (rawItem.publishedAt) return { date: rawItem.publishedAt, isEstimated: false };
+  return { date: rawItem.fetchedAt, isEstimated: true };
+}
+
+/** 向 metadata JSON 中注入 isEstimated 标记 */
+function buildMetadata(base: Record<string, unknown>, isEstimated: boolean): string {
+  return JSON.stringify({ ...base, isEstimated: isEstimated || undefined });
 }
 
 async function getSourceNameMap(): Promise<Record<string, string>> {
@@ -271,13 +277,13 @@ export async function processCategory(
           importance: m.importance,
           tags: JSON.stringify(m.tags),
           language: 'zh',
-          publishedAt: resolvePublishedAt(rawItem),
-          metadata: JSON.stringify({
+          publishedAt: resolvePublishedAt(rawItem).date,
+          metadata: buildMetadata({
             sourceRank: m.primarySourceRank,
             sourceUrl: m.primarySourceUrl,
             sourceCount: m.sourceCount,
             sourceNames: m.sourceNames,
-          }),
+          }, resolvePublishedAt(rawItem).isEstimated),
         },
       });
     } catch (err) {
@@ -316,13 +322,13 @@ export async function processCategory(
           importance: score.importance,
           tags: JSON.stringify(score.tags),
           language: 'zh',
-          publishedAt: resolvePublishedAt(rawItem),
-          metadata: JSON.stringify({
+          publishedAt: resolvePublishedAt(rawItem).date,
+          metadata: buildMetadata({
             sourceRank: rawItem.sourceRank,
             sourceUrl: rawItem.externalUrl,
             sourceCount: 1,
             sourceNames: [sourceNameMap[rawItem.sourceId] ?? rawItem.sourceId],
-          }),
+          }, resolvePublishedAt(rawItem).isEstimated),
         },
       });
     } catch (err) {
