@@ -64,7 +64,7 @@ export interface ApiResponse<T> {
 }
 
 // 数据源分类
-export type NewsCategory = 'domestic' | 'international' | 'ai' | 'github' | 'investment';
+export type NewsCategory = 'domestic' | 'international' | 'ai' | 'github' | 'investment' | 'weibo';
 
 // 采集日志状态
 export type FetchStatus = 'success' | 'partial' | 'failed';
