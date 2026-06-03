@@ -16,24 +16,44 @@ export async function register(): Promise<void> {
     console.log(`[cron] 每日任务开始 ${new Date().toISOString()}`);
 
     const { fetchGithubTrending, fetchHackerNews, fetchRenminNews, fetchNhkNews,
-      fetchEastmoneyNews, fetchWeiboHot, fetchSinaNews, fetch36kr, fetchInfoq } = await import('@/lib/fetchers');
+      fetchEastmoneyNews, fetchWeiboHot, fetchSinaNews, fetch36kr, fetchInfoq,
+      fetchSinaIntl, fetchSinaSocial, fetchSinaFinance, fetchSinaMil,
+      fetchBaiduHot, fetchThepaper, fetchHuanqiu, fetchToutiao, fetchNetease,
+      fetchNpr, fetchFrance24, fetchRt } = await import('@/lib/fetchers');
     const { processCategory, cleanupRawContent } = await import('@/lib/pipeline');
 
     const CATEGORIES = ['domestic', 'international', 'ai', 'github', 'investment', 'weibo'];
     const retentionDays = parseInt(process.env['RAW_RETENTION_DAYS'] ?? '2', 10);
-    const cronSecret = process.env['CRON_SECRET'] || '';
 
     // 1. 采集
     const fetchers = [
-      { name: 'github-trending', fn: fetchGithubTrending },
-      { name: 'hackernews', fn: fetchHackerNews },
+      // domestic
       { name: 'renmin', fn: fetchRenminNews },
-      { name: 'nhk', fn: fetchNhkNews },
-      { name: 'eastmoney', fn: fetchEastmoneyNews },
       { name: 'sina', fn: fetchSinaNews },
-      { name: 'weibo', fn: fetchWeiboHot },
+      { name: 'sina-social', fn: fetchSinaSocial },
+      { name: 'sina-mil', fn: fetchSinaMil },
+      { name: 'toutiao', fn: fetchToutiao },
+      { name: 'netease', fn: fetchNetease },
+      { name: 'thepaper', fn: fetchThepaper },
+      { name: 'baidu', fn: fetchBaiduHot },
+      // international
+      { name: 'nhk', fn: fetchNhkNews },
+      { name: 'sina-intl', fn: fetchSinaIntl },
+      { name: 'huanqiu', fn: fetchHuanqiu },
+      { name: 'npr', fn: fetchNpr },
+      { name: 'france24', fn: fetchFrance24 },
+      { name: 'rt', fn: fetchRt },
+      // ai
+      { name: 'hackernews', fn: fetchHackerNews },
       { name: '36kr', fn: fetch36kr },
       { name: 'infoq', fn: fetchInfoq },
+      // github
+      { name: 'github-trending', fn: fetchGithubTrending },
+      // investment
+      { name: 'eastmoney', fn: fetchEastmoneyNews },
+      { name: 'sina-finance', fn: fetchSinaFinance },
+      // weibo
+      { name: 'weibo', fn: fetchWeiboHot },
     ];
 
     for (const { name, fn } of fetchers) {
