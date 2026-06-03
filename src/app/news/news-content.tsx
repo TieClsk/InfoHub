@@ -79,6 +79,7 @@ export function NewsContent() {
 
       <DateStrip
         selected={date}
+        category={category}
         onChange={(d) => router.push(`/news?category=${category}&date=${d}`)}
       />
 

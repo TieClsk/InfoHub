@@ -6,13 +6,15 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 interface DateStripProps {
   selected: string; // YYYY-MM-DD
   onChange: (date: string) => void;
+  category?: string;
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-export function DateStrip({ selected, onChange }: DateStripProps) {
+export function DateStrip({ selected, onChange, category }: DateStripProps) {
+  const catParam = category ? `?category=${category}` : '';
   const { data } = useSWR<{ success: boolean; data: string[] }>(
-    '/api/news/dates',
+    `/api/news/dates${catParam}`,
     fetcher,
     { dedupingInterval: 60000 }
   );
