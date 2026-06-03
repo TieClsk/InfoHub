@@ -370,7 +370,7 @@ export async function processCategory(
   };
 }
 
-export async function cleanupRawContent(retentionDays = 14): Promise<{ deleted: number; duration: number }> {
+export async function cleanupRawContent(retentionDays = 2): Promise<{ deleted: number; duration: number }> {
   const startTime = Date.now();
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - retentionDays);

@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       case 'cleanup': {
         // 仅清理
         const retentionDays = parseInt(
-          process.env['RAW_RETENTION_DAYS'] ?? '14',
+          process.env['RAW_RETENTION_DAYS'] ?? '2',
           10
         );
         const result = await cleanupRawContent(retentionDays);
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
           processResults.push(await processCategory(cat, 30));
         }
         const retentionDays = parseInt(
-          process.env['RAW_RETENTION_DAYS'] ?? '14',
+          process.env['RAW_RETENTION_DAYS'] ?? '2',
           10
         );
         const cleanupResult = await cleanupRawContent(retentionDays);

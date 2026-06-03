@@ -20,7 +20,7 @@ export async function register(): Promise<void> {
     const { processCategory, cleanupRawContent } = await import('@/lib/pipeline');
 
     const CATEGORIES = ['domestic', 'international', 'ai', 'github', 'investment', 'weibo'];
-    const retentionDays = parseInt(process.env['RAW_RETENTION_DAYS'] ?? '14', 10);
+    const retentionDays = parseInt(process.env['RAW_RETENTION_DAYS'] ?? '2', 10);
     const cronSecret = process.env['CRON_SECRET'] || '';
 
     // 1. 采集

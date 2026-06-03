@@ -4,7 +4,7 @@ import { processCategory } from '@/lib/pipeline';
 import { cleanupRawContent } from '@/lib/pipeline';
 
 const CATEGORIES = ['domestic', 'international', 'ai', 'github', 'investment', 'weibo'];
-const retentionDays = parseInt(process.env['RAW_RETENTION_DAYS'] ?? '14', 10);
+const retentionDays = parseInt(process.env['RAW_RETENTION_DAYS'] ?? '2', 10);
 
 export async function GET(request: NextRequest) {
   // Vercel Cron 鉴权
