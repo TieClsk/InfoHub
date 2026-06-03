@@ -26,6 +26,7 @@ export async function fetchSinaNews(): Promise<FetcherResult<RawContentInput>> {
       sourceRank: undefined,
       rawData: item as unknown as Record<string, unknown>,
       language: 'zh',
+      publishedAt: item.ctime ? new Date(parseInt(item.ctime) * 1000).toISOString() : undefined,
     }));
 
     const valid = rawItems.filter((i) => i.title.length > 3);
