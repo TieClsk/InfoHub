@@ -4,6 +4,26 @@ import { PROMPTS } from '@/config/prompts';
 const BASE_URL = process.env['DEEPSEEK_BASE_URL'] || 'https://api.deepseek.com';
 const API_KEY = process.env['DEEPSEEK_API_KEY'] || '';
 
+// AI 可分配的内容板块（github 钉死、不参与重分类，故不在此列）
+export const NEWS_CATEGORIES = ['domestic', 'international', 'ai', 'investment', 'weibo'] as const;
+export type NewsCategory = (typeof NEWS_CATEGORIES)[number];
+
+// 内容分类规则 —— scoreSingle / verifyAndMerge / classifyCategory 共用，保证口径一致
+export const CATEGORY_RULES = `按内容本身判断归属板块（不看来源媒体）：
+- ai（科技）：人工智能、大模型、机器学习、芯片/半导体、互联网产品、编程开发、开源项目、科技巨头动态（如英伟达/OpenAI/谷歌/微软）
+- investment（投资）：股市、基金、加密货币、宏观经济、央行/财政政策、公司财报、产业资本、大宗商品
+- weibo（舆论）：娱乐八卦、明星、社交热议、网络梗/流行语、纯社会话题讨论
+- international（国际）：境外事件、外交、国际关系、他国政治经济社会
+- domestic（热点）：国内社会、时政、民生、政策、突发新闻（不属于以上四类的国内新闻归此）
+注意：只能从 domestic/international/ai/investment/weibo 五个中选一个；主题模糊时按最主要的话题归类。`;
+
+/** 校验 AI 返回的 category，非法/缺失则回退到 fallback */
+export function normalizeCategory(aiCategory: unknown, fallback: string): string {
+  return typeof aiCategory === 'string' && (NEWS_CATEGORIES as readonly string[]).includes(aiCategory)
+    ? aiCategory
+    : fallback;
+}
+
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -139,6 +159,7 @@ export interface MergedResult {
   importance: number;
   tags: string[];
   subcategory: string;
+  category: string;
   sourceNames: string[];
   sourceCount: number;
   keptId: string;
@@ -178,8 +199,10 @@ ${itemsText}
 重要：如果有可能是在说同一件事（即使措辞不同），就判断为 sameEvent: true。
 
 返回 JSON：
-- 同一事件：{"sameEvent": true, "mergedTitle": "纯中文标题", "mergedSummary": "50-100字中文简介，综合各来源信息，禁止重复标题和URL", "importance": 0.00-10.00小数（多源交叉验证的事件可适当加分但不用保证高分，根据事件本身重要性判断）, "tags": ["具体标签1","具体标签2"], "subcategory": "分类", "primaryIndex": 0}
+- 同一事件：{"sameEvent": true, "mergedTitle": "纯中文标题", "mergedSummary": "50-100字中文简介，综合各来源信息，禁止重复标题和URL", "importance": 0.00-10.00小数（多源交叉验证的事件可适当加分但不用保证高分，根据事件本身重要性判断）, "tags": ["具体标签1","具体标签2"], "subcategory": "分类", "category": "按内容选 domestic/international/ai/investment/weibo", "primaryIndex": 0}
 - 完全不同事件：{"sameEvent": false}
+
+${CATEGORY_RULES}
 （tags 不能为空，不能用"新闻""热点"等宽泛词）`,
       },
     ]);
@@ -192,6 +215,7 @@ ${itemsText}
       importance?: number;
       tags?: string[];
       subcategory?: string;
+      category?: string;
       primaryIndex?: number;
     };
 
@@ -217,6 +241,7 @@ ${itemsText}
       importance: Math.min(10, (result.importance ?? 5) + (sourceNames.length >= 3 ? 1.5 : sourceNames.length >= 2 ? 0.8 : 0)),
       tags: result.tags || [],
       subcategory: result.subcategory || '',
+      category: result.category || '',
       sourceNames,
       sourceCount: sourceNames.length,
       keptId,
@@ -242,6 +267,7 @@ export async function scoreSingle(items: VerdictItem[]): Promise<
     importance: number;
     tags: string[];
     subcategory: string;
+    category: string;
   }>
 > {
   if (!API_KEY || items.length === 0) return [];
@@ -265,8 +291,11 @@ ${itemsText}
 3. importance：必须是小数（如6.4、8.7），保留1位小数。基于事件本身重要性打分，区分度要明显：无聊琐事2-4分，普通新闻4-6分，值得关注6-7.5分，重要事件7.5-9分，极重大9+分。绝对不要给整数（如7、8），必须带小数
 4. tags：每条必须有1-3个中文标签。标签要具体（公司名、技术名、领域名），禁止使用"新闻""热点""国内""国际""科技"等宽泛词
 5. subcategory：二级分类
+6. category：按内容本身从 domestic/international/ai/investment/weibo 选一个
 
-返回 JSON 数组。每条必须包含所有字段，importance必须是小数：[{"id":"...", "title":"中文标题", "summary":"中文简介", "importance":6.4, "tags":["标签1","标签2"], "subcategory":"分类"}]`,
+${CATEGORY_RULES}
+
+返回 JSON 数组。每条必须包含所有字段，importance必须是小数：[{"id":"...", "title":"中文标题", "summary":"中文简介", "importance":6.4, "tags":["标签1","标签2"], "subcategory":"分类", "category":"ai"}]`,
       },
     ]);
 
@@ -281,7 +310,56 @@ ${itemsText}
       importance: typeof r['importance'] === 'number' ? r['importance'] : 5,
       tags: Array.isArray(r['tags']) ? (r['tags'] as string[]) : [],
       subcategory: (r['subcategory'] as string) || '',
+      category: (r['category'] as string) || '',
     }));
+  } catch {
+    return [];
+  }
+}
+
+// ═══════════════════════════════════════════
+// 轻量分类 —— 仅供迁移脚本对存量条目重新打 category
+// ═══════════════════════════════════════════
+
+interface ClassifyItem {
+  id: string;
+  title: string;
+  summary: string;
+}
+
+/**
+ * 仅按标题+摘要给已有条目重新分配 category，不重生成标题/摘要/标签（省 token）。
+ * 供 scripts/reclassify-all.ts 对存量 ProcessedContent 批量重分类。
+ */
+export async function classifyCategory(items: ClassifyItem[]): Promise<Array<{ id: string; category: string }>> {
+  if (!API_KEY || items.length === 0) return [];
+
+  const list = items.map((i) => `[${i.id}] ${i.title}\n摘要：${i.summary}`).join('\n');
+
+  try {
+    const content = await chatCompletion([
+      { role: 'system', content: '你是新闻分类助手。只返回 JSON 数组，不要其他内容。' },
+      {
+        role: 'user',
+        content: `为以下每条新闻按内容本身分配一个板块。
+
+${CATEGORY_RULES}
+
+新闻列表：
+${list}
+
+返回 JSON 数组，每条含 id 和 category（必须是 domestic/international/ai/investment/weibo 之一）：
+[{"id":"...", "category":"ai"}]`,
+      },
+    ]);
+
+    const jsonStr = extractJson(content);
+    const results: unknown = JSON.parse(jsonStr);
+    if (!Array.isArray(results)) return [];
+
+    return (results as Array<Record<string, unknown>>)
+      .map((r) => ({ id: r['id'] as string, category: (r['category'] as string) || '' }))
+      .filter((r) => r.id && r.category);
   } catch {
     return [];
   }
