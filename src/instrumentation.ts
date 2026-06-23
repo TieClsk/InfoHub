@@ -91,7 +91,7 @@ export async function register(): Promise<void> {
 
       const MODULES = [
         { key: 'domestic', label: '时事热点', icon: '🔥', where: { category: { in: ['domestic', 'international'] } } },
-        { key: 'domestic', label: '时政消息', icon: '🏛️', where: { sourceId: { in: ['renmin'] } } },
+        { key: 'domestic', label: '时政消息', icon: '🏛️', where: { category: 'domestic', sourceId: { in: ['renmin'] } } },
         { key: 'ai', label: '科技领域', icon: '🤖', where: { category: 'ai' } },
         { key: 'investment', label: '投资领域', icon: '📈', where: { category: 'investment' } },
         { key: 'github', label: 'GitHub热榜', icon: '⭐', where: { category: 'github' } },
