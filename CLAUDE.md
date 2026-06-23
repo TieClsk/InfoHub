@@ -33,6 +33,7 @@ npx prisma generate            # 生成 client 到 src/generated/prisma（已 gi
 # 一次性运维脚本（用 npx tsx 跑，tsx 非 dep、靠 npx 临时拉取）
 npx tsx scripts/seed-v4.ts     # 最新版种子数据（DataSource 记录）
 npx tsx scripts/full-refresh.ts# 全量：先清空再采集 21 源 → AI 处理 6 分类
+npx tsx scripts/reclassify-all.ts # 存量数据按内容重分类（修正历史按来源打的 category）
 
 # 手动触发线上全流程（需 CRON_SECRET）
 curl -H "Authorization: Bearer $CRON_SECRET" \
@@ -53,6 +54,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
 6. **AI 主流程是两遍管线**（`src/lib/pipeline.ts` 的 `processCategory`），不是 `prompts.ts` 里的 `BATCH_PROCESS`。`processBatch` / `PROMPTS.BATCH_PROCESS` 是遗留代码，当前不调用。
 7. **`publishedAt` 兜底**：RawContent 的 `publishedAt`（源端发布时间）为空时，ProcessedContent 用 `fetchedAt` 兜底，并在 `metadata.isEstimated=true` 标记。前端日期相关逻辑都按**本地时区**处理（修过 UTC 凌晨跨天 bug，见 git 历史）。
 8. **速览缓存是文件**：`.next/cache/overview.json`，24h TTL。本地 `npm run dev` 重建过 `.next` 会丢缓存，首次访问 `/api/ai/overview` 会重新生成（慢）。
+9. **`category` 由 AI 按内容打，不是按来源**。`processCategory(sourceCategory)` 的入参只是"取哪些源的 raw 来处理"；写入 ProcessedContent 的 `category` 是 AI 根据**内容**从 `domestic/international/ai/investment/weibo` 里选的（`src/lib/deepseek.ts` 的 `CATEGORY_RULES`），AI 返回非法值才回退到来源板块。**`github` 钉死**——AI 不会把普通新闻分到 github，github-trending 源的内容永远是 github。处理逻辑在 `pipeline.ts` 的 `pickCategory()`。已知限制：去重合并只在同批次内做，跨批次（如同一科技事件分别被国内源和 InfoQ 报道）可能各留一条。
 
 ---
 
@@ -64,7 +66,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
                 processCategory(category)   ← src/lib/pipeline.ts
                   ├─ Pass1 代码聚类（标题公共子串≥5）+ AI 聚类
                   ├─ Pass2 verifyAndMerge 合并同事件 → sourceCount/sourceNames/加分
-                  ├─ scoreSingle 逐条评分+摘要+标签
+                  ├─ scoreSingle 逐条评分+摘要+标签+按内容打 category
                   ├─ translateToChinese（英文/非中文 → 中文）
                   └─ 后处理：修复"摘要≈标题/过短"、补缺失标签
                           │
@@ -186,9 +188,11 @@ interface RawContentInput { sourceId: string; externalId?: string; externalUrl?:
 
 1. **Pass 1 聚类**：代码层找跨源标题公共子串 ≥5 字的疑似对（并查集合并）+ `clusterByTitle`（AI，批 20）补充 → 合并重叠组。
 2. **Pass 2 核实合并**：每组调 `verifyAndMerge`，确认同事件则合并为一条（`sourceCount`/`sourceNames`，importance 按 ≥3 源 +1.5 / ≥2 源 +0.8 加分，上限 10）。AI 否决但代码发现重叠时仍强制合并。
-3. **单条评分**：未合并的走 `scoreSingle`（批 15），出 title/summary/importance(小数)/tags/subcategory。
+3. **单条评分**：未合并的走 `scoreSingle`（批 15），出 title/summary/importance(小数)/tags/subcategory/**category**。
 4. **翻译**：英文或非中文走 `translateToChinese`。
-5. **后处理修复**：扫描全分类，对"摘要≈标题/过短"或"缺标签"的条目分别调 `regenerateSummary` / `regenerateTags`。
+5. **后处理修复**：按本批 `createdIds` 扫描，对"摘要≈标题/过短"或"缺标签"的条目分别调 `regenerateSummary` / `regenerateTags`。
+
+**内容分类（category）**：`verifyAndMerge` 和 `scoreSingle` 都让 AI 按内容从 `domestic/international/ai/investment/weibo` 选一个 category（规则见 `CATEGORY_RULES`）。`pipeline.ts` 的 `pickCategory(aiCategory, sourceCategory)` 决定最终值：github 钉死；AI 合法则采用，否则回退来源板块。`normalizeCategory` 做合法性校验。轻量版 `classifyCategory(items)`（只按标题+摘要、不重生成其他字段）供存量迁移脚本 `scripts/reclassify-all.ts` 复用。
 
 **其它导出函数**：`generateUnifiedOverview`（6 模块速览，写文件缓存）、`generateOverview`（单分类速览）、`generateDetailSummary`（200-300 字深度概述）、`generateSuggestedQuestions`、`chatAboutContent`（问答）、`generateWeeklySummary`、`filterIrrelevant`（分类内容过滤）。
 
