@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import { clusterByTitle, verifyAndMerge, scoreSingle, translateToChinese, filterIrrelevant, regenerateSummary, regenerateTags } from '@/lib/deepseek';
+import { clusterByTitle, verifyAndMerge, scoreSingle, translateToChinese, filterIrrelevant, regenerateSummary, regenerateTags, normalizeCategory } from '@/lib/deepseek';
 import type { MergedResult } from '@/lib/deepseek';
 
 function shareSubstring(a: string, b: string, minLen = 5): boolean {
@@ -107,6 +107,16 @@ function resolvePublishedAt(rawItem: { publishedAt: Date | null; fetchedAt: Date
 /** 向 metadata JSON 中注入 isEstimated 标记 */
 function buildMetadata(base: Record<string, unknown>, isEstimated: boolean): string {
   return JSON.stringify({ ...base, isEstimated: isEstimated || undefined });
+}
+
+/**
+ * 决定写入 ProcessedContent 的 category：
+ * - github 钉死（github-trending 源的内容永远是 github 板块，不参与重分类）
+ * - AI 返回的 category 合法则采用，否则回退到来源板块
+ */
+function pickCategory(aiCategory: string | undefined, sourceCategory: string): string {
+  if (sourceCategory === 'github') return 'github';
+  return normalizeCategory(aiCategory, sourceCategory);
 }
 
 async function getSourceNameMap(): Promise<Record<string, string>> {
@@ -231,7 +241,7 @@ export async function processCategory(
   const remaining = unprocessed.filter((r) => !mergedIdSet.has(r.id));
 
   // AI 评分摘要（分批处理）
-  const singleResults: Array<{ id: string; title: string; summary: string; importance: number; tags: string[]; subcategory: string }> = [];
+  const singleResults: Array<{ id: string; title: string; summary: string; importance: number; tags: string[]; subcategory: string; category: string }> = [];
   const BATCH = 15;
   for (let i = 0; i < remaining.length; i += BATCH) {
     const batch = remaining.slice(i, i + BATCH).map((r) => ({
@@ -250,6 +260,7 @@ export async function processCategory(
   // AI 过滤暂时关闭 — scoreSingle 的 prompt 已要求 AI 标记 irrelevant
 
   // 5. 写入数据库
+  const createdIds: string[] = [];
   // 5a. 合并条目（高优先级）
   for (const m of mergedResults) {
     const rawItem = unprocessed.find((r) => r.id === m.keptId);
@@ -265,12 +276,12 @@ export async function processCategory(
     }
 
     try {
-      await prisma.processedContent.create({
+      const created = await prisma.processedContent.create({
         data: {
           rawContentId: rawItem.id,
           sourceId: rawItem.sourceId,
           sourceName: m.primarySourceName,
-          category,
+          category: pickCategory(m.category, category),
           subcategory: m.subcategory || null,
           title: mergedTitle,
           summary: mergedSummary,
@@ -286,6 +297,7 @@ export async function processCategory(
           }, resolvePublishedAt(rawItem).isEstimated),
         },
       });
+      createdIds.push(created.id);
     } catch (err) {
       errors.push(`Merged ${rawItem.id}: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -310,12 +322,12 @@ export async function processCategory(
     }
 
     try {
-      await prisma.processedContent.create({
+      const created = await prisma.processedContent.create({
         data: {
           rawContentId: rawItem.id,
           sourceId: rawItem.sourceId,
           sourceName: sourceNameMap[rawItem.sourceId] ?? rawItem.sourceId,
-          category,
+          category: pickCategory(score.category, category),
           subcategory: score.subcategory || null,
           title,
           summary,
@@ -331,16 +343,20 @@ export async function processCategory(
           }, resolvePublishedAt(rawItem).isEstimated),
         },
       });
+      createdIds.push(created.id);
     } catch (err) {
       errors.push(`Single ${rawItem.id}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
   // 6. 后处理：修复摘要≈标题 + 缺失标签
-  const allItems = await prisma.processedContent.findMany({
-    where: { category },
-    select: { id: true, title: true, summary: true, sourceName: true, tags: true },
-  });
+  //    按本批新建的 id 查（重分类后部分条目 category 已变，按 category 查会漏）
+  const allItems = createdIds.length > 0
+    ? await prisma.processedContent.findMany({
+        where: { id: { in: createdIds } },
+        select: { id: true, title: true, summary: true, sourceName: true, tags: true },
+      })
+    : [];
 
   let fixedSummaries = 0;
   let fixedTags = 0;
